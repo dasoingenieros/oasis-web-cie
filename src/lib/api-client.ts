@@ -1,0 +1,123 @@
+import axios, {
+  type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig,
+} from 'axios';
+import type {
+  AuthResponse, Installation, CreateInstallationDto, UpdateInstallationDto,
+  Circuit, CreateCircuitDto, CalculationResult, LoginDto, RegisterDto,
+  Document, ElectricalPanel, SavePanelWithDifferentialsDto,
+} from './types';
+
+let accessToken: string | null = null;
+export function getAccessToken(): string | null { return accessToken; }
+export function setAccessToken(token: string | null): void { accessToken = token; }
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
+
+const api: AxiosInstance = axios.create({
+  baseURL: `${API_BASE}/api/v1`,
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+  timeout: 15_000,
+});
+
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = getAccessToken();
+  if (token && config.headers) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
+
+function processQueue(error: unknown, token: string | null = null) {
+  failedQueue.forEach(({ resolve, reject }) => { if (error) reject(error); else if (token) resolve(token); });
+  failedQueue = [];
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh')) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({
+            resolve: (token: string) => { if (originalRequest.headers) originalRequest.headers.Authorization = `Bearer ${token}`; resolve(api(originalRequest)); },
+            reject,
+          });
+        });
+      }
+      originalRequest._retry = true;
+      isRefreshing = true;
+      try {
+        const { data } = await axios.post<AuthResponse>(`${API_BASE}/api/v1/auth/refresh`, {}, { withCredentials: true });
+        setAccessToken(data.accessToken);
+        processQueue(null, data.accessToken);
+        if (originalRequest.headers) originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        setAccessToken(null);
+        if (typeof window !== 'undefined') window.location.href = '/login';
+        return Promise.reject(refreshError);
+      } finally { isRefreshing = false; }
+    }
+    return Promise.reject(error);
+  },
+);
+
+export const authApi = {
+  async login(dto: LoginDto): Promise<AuthResponse> { const { data } = await api.post<AuthResponse>('/auth/login', dto); setAccessToken(data.accessToken); return data; },
+  async register(dto: RegisterDto): Promise<AuthResponse> { const { data } = await api.post<AuthResponse>('/auth/register', dto); setAccessToken(data.accessToken); return data; },
+  async refresh(): Promise<AuthResponse> { const { data } = await api.post<AuthResponse>('/auth/refresh'); setAccessToken(data.accessToken); return data; },
+  async logout(): Promise<void> { try { await api.post('/auth/logout'); } finally { setAccessToken(null); } },
+  async me(): Promise<AuthResponse['user']> { const { data } = await api.get<AuthResponse['user']>('/auth/me'); return data; },
+};
+
+export const installationsApi = {
+  async list(): Promise<Installation[]> { const { data } = await api.get<Installation[]>('/installations'); return data; },
+  async get(id: string): Promise<Installation> { const { data } = await api.get<Installation>(`/installations/${id}`); return data; },
+  async create(dto: CreateInstallationDto): Promise<Installation> { const { data } = await api.post<Installation>('/installations', dto); return data; },
+  async update(id: string, dto: UpdateInstallationDto): Promise<Installation> { const { data } = await api.put<Installation>(`/installations/${id}`, dto); return data; },
+  async delete(id: string): Promise<void> { await api.delete(`/installations/${id}`); },
+};
+
+export const circuitsApi = {
+  async list(installationId: string): Promise<Circuit[]> { const { data } = await api.get<Circuit[]>(`/installations/${installationId}/circuits`); return data; },
+  async replaceAll(installationId: string, circuits: CreateCircuitDto[]): Promise<Circuit[]> { const { data } = await api.put<Circuit[]>(`/installations/${installationId}/circuits`, circuits); return data; },
+};
+
+export const calculationsApi = {
+  async calculate(installationId: string): Promise<CalculationResult> { const { data } = await api.post<CalculationResult>(`/installations/${installationId}/calculate`); return data; },
+  async calculateSupply(installationId: string): Promise<any> { const { data } = await api.post(`/installations/${installationId}/calculate-supply`); return data; },
+  async getLatest(installationId: string): Promise<CalculationResult | null> { try { const { data } = await api.get<CalculationResult>(`/installations/${installationId}/calculations/latest`); return data; } catch { return null; } },
+};
+
+export const documentsApi = {
+  async list(installationId: string): Promise<Document[]> { const { data } = await api.get<Document[]>(`/installations/${installationId}/documents`); return data; },
+  async generate(installationId: string, type: 'MEMORIA_TECNICA' | 'CERTIFICADO' | 'UNIFILAR'): Promise<Document> { const { data } = await api.post<Document>(`/installations/${installationId}/documents/generate`, { type }); return data; },
+  async generateCie(installationId: string, format: 'xls' | 'pdf' = 'xls'): Promise<{ blob: Blob; filename: string }> { const resp = await api.post(`/installations/${installationId}/documents/generate-cie?format=${format}`, {}, { responseType: 'blob', timeout: 60_000 }); const cd = resp.headers['content-disposition'] || ''; const match = cd.match(/filename="?([^";\n]+)"?/); const filename = match ? match[1] : `CIE_${installationId.slice(0, 8)}.${format}`; return { blob: resp.data, filename }; },
+  async generateSolicitud(installationId: string, format: 'docx' | 'pdf' = 'docx'): Promise<Blob> { const { data } = await api.post(`/installations/${installationId}/documents/generate-solicitud?format=${format}`, {}, { responseType: 'blob', timeout: 60_000 }); return data; },
+  async download(installationId: string, documentId: string): Promise<Blob> { const { data } = await api.get(`/installations/${installationId}/documents/${documentId}/download`, { responseType: 'blob' }); return data; },
+  async remove(installationId: string, documentId: string): Promise<void> { await api.delete(`/installations/${installationId}/documents/${documentId}`); },
+};
+
+export const panelsApi = {
+  async get(installationId: string): Promise<ElectricalPanel | null> { try { const { data } = await api.get<ElectricalPanel>(`/installations/${installationId}/panel`); return data; } catch { return null; } },
+  async save(installationId: string, dto: SavePanelWithDifferentialsDto): Promise<ElectricalPanel> { const { data } = await api.put<ElectricalPanel>(`/installations/${installationId}/panel`, dto); return data; },
+  async createFromTemplate(installationId: string): Promise<ElectricalPanel> { const { data } = await api.post<ElectricalPanel>(`/installations/${installationId}/panel/template`); return data; },
+};
+
+export const unifilarApi = {
+  async getLayout(installationId: string): Promise<any | null> { try { const { data } = await api.get(`/installations/${installationId}/unifilar`); return data; } catch { return null; } },
+  async saveLayout(installationId: string, layoutJson: any): Promise<any> { const { data } = await api.put(`/installations/${installationId}/unifilar`, { layoutJson }); return data; },
+};
+
+export const tenantApi = {
+  async getProfile(): Promise<any> { const { data } = await api.get('/tenant/profile'); return data; },
+  async updateProfile(dto: Record<string, any>): Promise<any> { const { data } = await api.put('/tenant/profile', dto); return data; },
+  async getInstallers(): Promise<any[]> { const { data } = await api.get('/tenant/installers'); return data; },
+  async updateInstaller(userId: string, dto: Record<string, any>): Promise<any> { const { data } = await api.put(`/tenant/installers/${userId}`, dto); return data; },
+};
+
+export default api;
