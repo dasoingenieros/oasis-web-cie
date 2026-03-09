@@ -305,7 +305,9 @@ export function generateFromAPI(
       const insulStr = `${circ.insulationType || 'PVC'} · ${circ.length}m`;
       const cdtStr = circ.voltageDrop !== undefined ? `CdT:${circ.voltageDrop.toFixed(1)}%` : '';
       const powerStr = circ.power ? `${circ.power}W` : '';
-      const circLabel = `${circ.code || ''} ${circ.name}`.trim();
+      const circLabel = circ.code && circ.name.startsWith(circ.code)
+        ? circ.name
+        : `${circ.code || ''} ${circ.name}`.trim();
 
       // Siempre 2 líneas para nombre — partir si largo, pad si corto
       const maxChars = 14;

@@ -619,6 +619,14 @@ export function UnifilarEditor({ installationId, initialTemplate, onClose, insta
   const historyRef = useRef<Array<{nodes: UnifilarNode[], wires: UnifilarWire[]}>>([]);
   const historyPosRef = useRef(-1);
   const isUndoRedoRef = useRef(false);
+  const prevInstallationIdRef = useRef(installationId);
+
+  // Reset undo/redo history when installation changes
+  if (prevInstallationIdRef.current !== installationId) {
+    prevInstallationIdRef.current = installationId;
+    historyRef.current = [];
+    historyPosRef.current = -1;
+  }
   const [state, rawDispatch] = useReducer(reducer, initialTemplate || generateViviendaDemo(), initState);
   const pushHistory = useCallback((s: UnifilarState) => {
     if (isUndoRedoRef.current) return;
