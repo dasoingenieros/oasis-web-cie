@@ -16,7 +16,7 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (dto: LoginDto) => Promise<void>;
+  login: (dto: LoginDto) => Promise<User>;
   register: (dto: RegisterDto) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -56,14 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(async (dto: LoginDto) => {
+  const login = useCallback(async (dto: LoginDto): Promise<User> => {
     const response = await authApi.login(dto);
     setUser(response.user);
+    return response.user;
   }, []);
 
-  const register = useCallback(async (dto: RegisterDto) => {
-    const response = await authApi.register(dto);
-    setUser(response.user);
+  const register = useCallback(async (dto: RegisterDto): Promise<void> => {
+    // Register does NOT auto-login — email verification required
+    await authApi.register(dto);
   }, []);
 
   const logout = useCallback(async () => {

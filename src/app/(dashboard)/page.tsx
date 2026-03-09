@@ -1,14 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useInstallations } from '@/hooks/use-installations';
+import { subscriptionsApi } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { InstallationCard } from '@/components/installation-card';
 import { NewInstallationDialog } from '@/components/new-installation-dialog';
-import type { DashboardStats, CreateInstallationDto } from '@/lib/types';
+import type { DashboardStats, CreateInstallationDto, UsageData } from '@/lib/types';
 import {
   Plus,
   FileText,
@@ -17,6 +18,7 @@ import {
   CheckCircle2,
   Loader2,
   Zap,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -30,6 +32,12 @@ export default function DashboardPage() {
     deleteInstallation,
   } = useInstallations();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [usage, setUsage] = useState<UsageData | null>(null);
+
+  // Fetch usage data
+  useEffect(() => {
+    subscriptionsApi.getUsage().then(setUsage).catch(() => {});
+  }, []);
 
   const stats: DashboardStats = useMemo(() => {
     const now = new Date();
@@ -82,8 +90,48 @@ export default function DashboardPage() {
     { label: 'Completados', value: stats.completed, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
   ];
 
+  // Usage banner
+  const isFreePlan = usage && usage.plan === 'free' && usage.maxCerts > 0;
+  const usagePercent = usage && usage.maxCerts > 0 ? Math.min(100, Math.round((usage.certsGenerated / usage.maxCerts) * 100)) : 0;
+  const atLimit = usage && usage.maxCerts > 0 && usage.certsGenerated >= usage.maxCerts;
+
   return (
     <div className="space-y-6">
+      {/* Plan usage banner */}
+      {isFreePlan && usage && (
+        <div className={`rounded-xl border p-4 ${atLimit ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Zap className={`w-4 h-4 ${atLimit ? 'text-red-600' : 'text-blue-600'}`} />
+              <span className={`text-sm font-semibold ${atLimit ? 'text-red-800' : 'text-blue-800'}`}>
+                Plan Free · {usage.certsGenerated}/{usage.maxCerts} certificados generados
+              </span>
+            </div>
+            <a
+              href="/pricing"
+              className={`text-sm font-medium inline-flex items-center gap-1 ${
+                atLimit ? 'text-red-700 hover:text-red-600' : 'text-blue-700 hover:text-blue-600'
+              } transition-colors`}
+            >
+              Mejorar plan
+              <ArrowRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
+          {/* Progress bar */}
+          <div className={`w-full h-2 rounded-full ${atLimit ? 'bg-red-200' : 'bg-blue-200'}`}>
+            <div
+              className={`h-2 rounded-full transition-all ${atLimit ? 'bg-red-500' : 'bg-blue-500'}`}
+              style={{ width: `${usagePercent}%` }}
+            />
+          </div>
+          <p className={`text-xs mt-2 ${atLimit ? 'text-red-600' : 'text-blue-600'}`}>
+            {atLimit
+              ? 'Has alcanzado el límite de tu plan. Mejora para seguir generando certificados.'
+              : `Genera hasta ${usage.maxCerts} certificados gratis. ¿Necesitas más? Mejora tu plan.`}
+          </p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

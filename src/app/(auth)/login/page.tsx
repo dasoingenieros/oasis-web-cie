@@ -1,9 +1,9 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Zap, Loader2 } from 'lucide-react';
+import { Zap, Loader2, CheckCircle2 } from 'lucide-react';
 
 export default function LoginPage() {
   return (
@@ -22,18 +22,29 @@ function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const verified = searchParams.get('verified');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      await login({ email, password });
-      const from = searchParams.get('from') || '/';
-      router.push(from);
+      const user = await login({ email, password });
+      // Check if onboarding is needed
+      if (user.onboardingCompleted === false) {
+        router.push('/onboarding');
+      } else {
+        const from = searchParams.get('from') || '/';
+        router.push(from);
+      }
     } catch (err: any) {
       const message = err?.response?.data?.message;
-      setError(typeof message === 'string' ? message : 'Error de autenticación. Revisa tus credenciales.');
+      if (typeof message === 'string' && message.includes('not verified')) {
+        setError('Tu email no está verificado. Revisa tu bandeja de entrada.');
+      } else {
+        setError(typeof message === 'string' ? message : 'Error de autenticación. Revisa tus credenciales.');
+      }
     } finally {
       setLoading(false);
     }
@@ -62,6 +73,19 @@ function LoginPageInner() {
           </div>
           <p className="text-surface-500 text-sm">Certificados de Instalaciones Eléctricas</p>
         </div>
+
+        {/* Verified banner */}
+        {verified === 'true' && (
+          <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <p className="text-sm text-emerald-400">Email verificado correctamente. Ya puedes iniciar sesión.</p>
+          </div>
+        )}
+        {verified === 'error' && (
+          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            El enlace de verificación no es válido o ha caducado.
+          </div>
+        )}
 
         {/* Form */}
         <div className="bg-surface-900 border border-surface-800 rounded-2xl p-6 shadow-2xl">

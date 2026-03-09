@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { UnifilarEditor } from '@/components/unifilar/unifilar-editor';
+import { UpgradeModal } from '@/components/upgrade-modal';
 
 interface DocumentosTabProps {
   installationId: string;
@@ -30,6 +31,17 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
 
   // ── Unifilar modal state ──
   const [showUnifilar, setShowUnifilar] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
+  /** Check if error is a CIE limit error and show upgrade modal */
+  const isCieLimitError = (err: any): boolean => {
+    const data = err?.response?.data;
+    if (data?.code === 'CIE_LIMIT_REACHED' || (err?.response?.status === 403 && typeof data?.message === 'string' && data.message.toLowerCase().includes('límite'))) {
+      setShowUpgrade(true);
+      return true;
+    }
+    return false;
+  };
 
   const hasCalculation = !!calculation;
   const isCompliant = calculation?.allCompliant === true;
@@ -46,7 +58,7 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
   const handleGenerate = async (type: 'MEMORIA_TECNICA' | 'UNIFILAR') => {
     setGenerating(type); setError(null);
     try { const doc = await documentsApi.generate(installationId, type); setDocuments((prev) => [doc, ...prev]); }
-    catch (err: any) { setError(err?.response?.data?.message || 'Error al generar el documento'); }
+    catch (err: any) { if (!isCieLimitError(err)) setError(err?.response?.data?.message || 'Error al generar el documento'); }
     finally { setGenerating(null); }
   };
 
@@ -61,7 +73,7 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       await fetchDocuments();
-    } catch (err: any) { setError(err?.response?.data?.message || 'Error al generar el CIE'); }
+    } catch (err: any) { if (!isCieLimitError(err)) setError(err?.response?.data?.message || 'Error al generar el CIE'); }
     finally { setGenerating(null); }
   };
 
@@ -76,7 +88,7 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       await fetchDocuments();
-    } catch (err: any) { setError(err?.response?.data?.message || 'Error al generar la Solicitud BT'); }
+    } catch (err: any) { if (!isCieLimitError(err)) setError(err?.response?.data?.message || 'Error al generar la Solicitud BT'); }
     finally { setGenerating(null); }
   };
 
@@ -293,6 +305,9 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
           <UnifilarEditor installationId={installationId} onClose={() => setShowUnifilar(false)} installationData={installation} />
         </div>
       )}
+
+      {/* Upgrade modal — shown when CIE limit reached */}
+      <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </div>
   );
 }

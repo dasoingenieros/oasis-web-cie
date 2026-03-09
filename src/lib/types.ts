@@ -8,6 +8,8 @@ export interface User {
   name: string;
   role: UserRole;
   tenantId: string;
+  emailVerified?: boolean;
+  onboardingCompleted?: boolean;
   signerRegNum?: string | null;
   signerCategory?: string | null;
   signerInsurance: boolean;
@@ -262,6 +264,15 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   limit: number;
+}
+
+// ─── Usage / Plan ───────────────────────────────────────────
+
+export interface UsageData {
+  certsGenerated: number;
+  maxCerts: number;
+  plan: 'free' | 'pro' | 'empresa';
+  subscriptionStatus?: string | null;
 }
 
 // ─── Dashboard stats ─────────────────────────────────────────

@@ -11,9 +11,9 @@ import { Zap, Loader2 } from 'lucide-react';
 const registerSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   email: z.string().email('Email no válido'),
+  tenantName: z.string().optional(),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
   confirmPassword: z.string(),
-  tenantName: z.string().optional(),
   acceptedPrivacy: z.literal(true, {
     errorMap: () => ({ message: 'Debes aceptar la política de privacidad' }),
   }),
@@ -48,7 +48,8 @@ export default function RegisterPage() {
         tenantName: data.tenantName,
         acceptedPrivacy: true,
       });
-      router.push('/');
+      // Redirect to check-email screen instead of auto-login
+      router.push(`/check-email?email=${encodeURIComponent(data.email)}`);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;

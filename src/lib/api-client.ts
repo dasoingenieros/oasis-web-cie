@@ -4,7 +4,7 @@ import axios, {
 import type {
   AuthResponse, Installation, CreateInstallationDto, UpdateInstallationDto,
   Circuit, CreateCircuitDto, CalculationResult, LoginDto, RegisterDto,
-  Document, ElectricalPanel, SavePanelWithDifferentialsDto,
+  Document, ElectricalPanel, SavePanelWithDifferentialsDto, UsageData,
 } from './types';
 
 let accessToken: string | null = null;
@@ -80,12 +80,9 @@ export const authApi = {
     const user = await authApi.me();
     return { accessToken, user };
   },
-  async register(dto: RegisterDto): Promise<AuthResponse> {
-    const { data: body } = await api.post('/auth/register', dto);
-    const { accessToken } = unwrap<{ accessToken: string }>(body);
-    setAccessToken(accessToken);
-    const user = await authApi.me();
-    return { accessToken, user };
+  /** Register — does NOT auto-login (email verification required) */
+  async register(dto: RegisterDto): Promise<void> {
+    await api.post('/auth/register', dto);
   },
   async refresh(): Promise<AuthResponse> {
     const { data: body } = await api.post('/auth/refresh');
@@ -98,6 +95,9 @@ export const authApi = {
   async me(): Promise<AuthResponse['user']> {
     const { data: body } = await api.get('/auth/me');
     return unwrap<AuthResponse['user']>(body);
+  },
+  async resendVerify(email: string): Promise<void> {
+    await api.post('/auth/resend-verify', { email });
   },
 };
 
@@ -138,6 +138,16 @@ export const panelsApi = {
 export const unifilarApi = {
   async getLayout(installationId: string): Promise<any | null> { try { const { data } = await api.get(`/installations/${installationId}/unifilar`); return data; } catch { return null; } },
   async saveLayout(installationId: string, layoutJson: any): Promise<any> { const { data } = await api.put(`/installations/${installationId}/unifilar`, { layoutJson }); return data; },
+};
+
+export const onboardingApi = {
+  async saveCompany(data: Record<string, any>): Promise<any> { const { data: res } = await api.put('/onboarding/company', data); return res; },
+  async saveInstaller(data: Record<string, any>): Promise<any> { const { data: res } = await api.put('/onboarding/installer', data); return res; },
+  async complete(): Promise<void> { await api.post('/onboarding/complete'); },
+};
+
+export const subscriptionsApi = {
+  async getUsage(): Promise<UsageData> { const { data } = await api.get<UsageData>('/subscriptions/usage'); return data; },
 };
 
 export const tenantApi = {

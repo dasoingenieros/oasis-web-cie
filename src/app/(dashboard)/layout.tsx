@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { subscriptionsApi } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+import type { UsageData } from '@/lib/types';
 import {
   LayoutDashboard,
   FolderOpen,
@@ -13,6 +15,7 @@ import {
   Zap,
   Menu,
   X,
+  ArrowUpRight,
 } from 'lucide-react';
 
 const nav = [
@@ -26,12 +29,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [usage, setUsage] = useState<UsageData | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push('/login');
     }
   }, [isLoading, isAuthenticated, router]);
+
+  // Redirect to onboarding if needed (skip if already on /onboarding)
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user && user.onboardingCompleted === false && pathname !== '/onboarding') {
+      router.push('/onboarding');
+    }
+  }, [isLoading, isAuthenticated, user, pathname, router]);
+
+  // Fetch usage for sidebar upgrade button
+  useEffect(() => {
+    if (isAuthenticated) {
+      subscriptionsApi.getUsage().then(setUsage).catch(() => {});
+    }
+  }, [isAuthenticated]);
 
   if (isLoading || !isAuthenticated) {
     return (
@@ -40,6 +58,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     );
   }
+
+  const isFreePlan = usage && usage.plan === 'free';
 
   return (
     <div className="min-h-screen bg-surface-50 flex">
@@ -95,6 +115,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             );
           })}
         </nav>
+
+        {/* Upgrade button (free plan only) */}
+        {isFreePlan && (
+          <div className="px-3 pb-2">
+            <Link
+              href="/pricing"
+              className="flex items-center justify-center gap-2 px-3 py-2.5 w-full rounded-lg
+                bg-gradient-to-r from-brand-600 to-blue-600 text-white text-sm font-medium
+                hover:from-brand-500 hover:to-blue-500 transition-all"
+            >
+              <Zap className="w-4 h-4" />
+              Mejorar plan
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
 
         {/* User */}
         <div className="p-3 border-t border-surface-800">
