@@ -96,7 +96,7 @@ function WizardHelper({ onResult }: { onResult: (tipo: 'MTD' | 'PROYECTO') => vo
   return (
     <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
       <p className="text-xs text-blue-600 font-medium">Pregunta {step + 1} de {questions.length}</p>
-      <p className="text-sm text-blue-900 font-medium">{questions[step].q}</p>
+      <p className="text-sm text-blue-700 font-medium">{questions[step].q}</p>
       <div className="flex gap-2">
         <Button type="button" size="sm" variant="outline" onClick={() => handleAnswer(true)}>Sí</Button>
         <Button type="button" size="sm" variant="outline" onClick={() => handleAnswer(false)}>No</Button>
@@ -182,12 +182,12 @@ export function NewInstallationDialog({
                 className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all ${
                   tipoDoc === 'MTD'
                     ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-200'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                    : 'border-surface-200 bg-white hover:border-surface-300 hover:bg-surface-50'
                 }`}
               >
-                <FileText className={`h-6 w-6 ${tipoDoc === 'MTD' ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span className={`text-sm font-semibold ${tipoDoc === 'MTD' ? 'text-blue-700' : 'text-slate-700'}`}>MTD</span>
-                <span className="text-xs text-slate-500 text-center">Memoria Técnica de Diseño</span>
+                <FileText className={`h-6 w-6 ${tipoDoc === 'MTD' ? 'text-blue-600' : 'text-surface-400'}`} />
+                <span className={`text-sm font-semibold ${tipoDoc === 'MTD' ? 'text-blue-600' : 'text-surface-700'}`}>MTD</span>
+                <span className="text-xs text-surface-500 text-center">Memoria Técnica de Diseño</span>
               </button>
               <button
                 type="button"
@@ -195,12 +195,12 @@ export function NewInstallationDialog({
                 className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all ${
                   tipoDoc === 'PROYECTO'
                     ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-200'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                    : 'border-surface-200 bg-white hover:border-surface-300 hover:bg-surface-50'
                 }`}
               >
-                <FolderOpen className={`h-6 w-6 ${tipoDoc === 'PROYECTO' ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span className={`text-sm font-semibold ${tipoDoc === 'PROYECTO' ? 'text-blue-700' : 'text-slate-700'}`}>Proyecto</span>
-                <span className="text-xs text-slate-500 text-center">Proyecto Técnico</span>
+                <FolderOpen className={`h-6 w-6 ${tipoDoc === 'PROYECTO' ? 'text-blue-600' : 'text-surface-400'}`} />
+                <span className={`text-sm font-semibold ${tipoDoc === 'PROYECTO' ? 'text-blue-600' : 'text-surface-700'}`}>Proyecto</span>
+                <span className="text-xs text-surface-500 text-center">Proyecto Técnico</span>
               </button>
             </div>
             {!showWizard && (
@@ -215,14 +215,14 @@ export function NewInstallationDialog({
             )}
             {showWizard && <WizardHelper onResult={handleSelectTipoDoc} />}
             {errors.tipoDocumentacion && (
-              <p className="text-xs text-red-500">Selecciona el tipo de documentación</p>
+              <p className="text-xs text-red-600">Selecciona el tipo de documentación</p>
             )}
           </div>
 
           {/* Aviso Proyecto */}
           {tipoDoc === 'PROYECTO' && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <p className="text-sm text-amber-700 font-medium">Proyecto Técnico — Próximamente</p>
+              <p className="text-sm text-amber-600 font-medium">Proyecto Técnico — Próximamente</p>
               <p className="text-xs text-amber-600 mt-1">La gestión de Proyectos Técnicos estará disponible en una próxima versión. Puedes crear la instalación para tenerla registrada.</p>
             </div>
           )}
@@ -236,7 +236,7 @@ export function NewInstallationDialog({
               {...register('titularName')}
             />
             {errors.titularName && (
-              <p className="text-xs text-red-500">
+              <p className="text-xs text-red-600">
                 {errors.titularName.message}
               </p>
             )}
@@ -250,7 +250,7 @@ export function NewInstallationDialog({
               {...register('address')}
             />
             {errors.address && (
-              <p className="text-xs text-red-500">{errors.address.message}</p>
+              <p className="text-xs text-red-600">{errors.address.message}</p>
             )}
           </div>
 
@@ -270,21 +270,21 @@ export function NewInstallationDialog({
                   <SelectItem key={t.value} value={t.value}>
                     <div className="flex flex-col">
                       <span>{t.label}</span>
-                      <span className="text-xs text-slate-400">{t.desc}</span>
+                      <span className="text-xs text-surface-400">{t.desc}</span>
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {errors.supplyType && (
-              <p className="text-xs text-red-500">
+              <p className="text-xs text-red-600">
                 {errors.supplyType.message}
               </p>
             )}
           </div>
 
           {error && (
-            <p className="text-sm text-red-500 animate-fade-in">{error}</p>
+            <p className="text-sm text-red-600 animate-fade-in">{error}</p>
           )}
 
           <DialogFooter className="pt-2">

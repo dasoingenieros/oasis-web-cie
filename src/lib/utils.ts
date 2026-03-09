@@ -51,19 +51,19 @@ export function getStatusLabel(status: string): string {
 }
 
 /**
- * Get Tailwind classes for status badge
+ * Get Tailwind classes for status badge — light theme
  */
 export function getStatusClasses(status: string): string {
   const classes: Record<string, string> = {
-    DRAFT: 'bg-slate-100 text-slate-700',
-    CALCULATED: 'bg-blue-50 text-blue-700',
-    PENDING_REVIEW: 'bg-amber-50 text-amber-700',
-    RETURNED: 'bg-red-50 text-red-700',
-    APPROVED: 'bg-emerald-50 text-emerald-700',
-    DOCUMENTED: 'bg-violet-50 text-violet-700',
-    COMPLETED: 'bg-green-50 text-green-800',
+    DRAFT: 'bg-surface-100 text-surface-600',
+    CALCULATED: 'bg-blue-50 text-blue-600',
+    PENDING_REVIEW: 'bg-amber-50 text-amber-600',
+    RETURNED: 'bg-red-50 text-red-600',
+    APPROVED: 'bg-emerald-50 text-emerald-600',
+    DOCUMENTED: 'bg-violet-50 text-violet-600',
+    COMPLETED: 'bg-green-50 text-green-600',
   };
-  return classes[status] ?? 'bg-slate-100 text-slate-600';
+  return classes[status] ?? 'bg-surface-100 text-surface-600';
 }
 
 /**

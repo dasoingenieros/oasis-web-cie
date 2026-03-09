@@ -1,19 +1,31 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { Sidebar } from '@/components/sidebar';
-import { Topbar } from '@/components/topbar';
-import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import {
+  LayoutDashboard,
+  FolderOpen,
+  Settings,
+  LogOut,
+  Zap,
+  Menu,
+  X,
+} from 'lucide-react';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { isAuthenticated, isLoading } = useAuth();
+const nav = [
+  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/instalaciones', label: 'Instalaciones', icon: FolderOpen },
+  { href: '/configuracion', label: 'Configuración', icon: Settings },
+];
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -21,31 +33,105 @@ export default function DashboardLayout({
     }
   }, [isLoading, isAuthenticated, router]);
 
-  // Loading state while checking auth
-  if (isLoading) {
+  if (isLoading || !isAuthenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
-          <p className="text-sm text-slate-500">Cargando…</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-surface-50">
+        <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  // Not authenticated — will redirect
-  if (!isAuthenticated) {
-    return null;
-  }
-
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
+    <div className="min-h-screen bg-surface-50 flex">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-      {/* Main content area — offset by sidebar width */}
-      <div className="flex flex-1 flex-col pl-60">
-        <Topbar />
-        <main className="flex-1 p-6">{children}</main>
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          'fixed lg:sticky top-0 left-0 z-40 h-screen w-56 bg-surface-950 flex flex-col transition-transform lg:translate-x-0',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-2 px-4 h-14 border-b border-surface-800">
+          <div className="w-7 h-7 rounded-md bg-brand-600 flex items-center justify-center">
+            <Zap className="w-4 h-4 text-white" />
+          </div>
+          <span className="text-white font-semibold tracking-tight">CIE Platform</span>
+          <button className="lg:hidden ml-auto text-surface-400" onClick={() => setSidebarOpen(false)}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 py-4 px-2 space-y-0.5">
+          {nav.map((item) => {
+            const isActive =
+              item.href === '/'
+                ? pathname === '/'
+                : pathname.startsWith(item.href);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={cn(
+                  'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
+                  isActive
+                    ? 'bg-brand-600/10 text-brand-400 font-medium'
+                    : 'text-surface-400 hover:text-white hover:bg-surface-800/60',
+                )}
+              >
+                <item.icon className="w-4 h-4 flex-shrink-0" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* User */}
+        <div className="p-3 border-t border-surface-800">
+          <div className="flex items-center gap-2 px-2 mb-2">
+            <div className="w-7 h-7 rounded-full bg-surface-700 flex items-center justify-center text-xs text-white font-medium">
+              {user?.name?.[0]?.toUpperCase() || 'U'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-white truncate">{user?.name || 'Usuario'}</p>
+              <p className="text-xs text-surface-500 truncate">{user?.email}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => { logout(); router.push('/login'); }}
+            className="flex items-center gap-2 px-3 py-1.5 w-full rounded-lg text-sm text-surface-400 hover:text-red-400 hover:bg-surface-800/60 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            Cerrar sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top bar */}
+        <header className="sticky top-0 z-20 h-14 bg-white/80 backdrop-blur-sm border-b border-surface-200 flex items-center px-4 gap-3">
+          <button className="lg:hidden text-surface-600" onClick={() => setSidebarOpen(true)}>
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2 text-sm text-surface-500">
+            <Zap className="w-4 h-4" />
+            <span>Certificados de Instalaciones Eléctricas</span>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
     </div>
   );

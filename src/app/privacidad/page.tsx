@@ -6,27 +6,27 @@ export const metadata = {
 
 export default function PrivacidadPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-surface-50">
       {/* Header */}
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-surface-200 bg-surface-50">
         <div className="mx-auto max-w-3xl px-6 py-4 flex items-center gap-3">
           <a href="/" className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600">
               <Zap className="h-4 w-4 text-white" />
             </div>
-            <span className="text-lg font-semibold text-slate-900">CIE Platform</span>
+            <span className="text-lg font-semibold text-surface-900">CIE Platform</span>
           </a>
         </div>
       </header>
 
       {/* Content */}
       <main className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Política de Privacidad</h1>
-        <p className="text-sm text-slate-500 mb-8">Última actualización: febrero 2026</p>
+        <h1 className="text-3xl font-bold text-surface-900 mb-2">Política de Privacidad</h1>
+        <p className="text-sm text-surface-500 mb-8">Última actualización: febrero 2026</p>
 
-        <div className="prose prose-slate max-w-none space-y-8 text-slate-700 leading-relaxed">
+        <div className="prose prose-invert max-w-none space-y-8 text-surface-700 leading-relaxed">
           <section>
-            <h2 className="text-xl font-semibold text-slate-900">1. Responsable del tratamiento</h2>
+            <h2 className="text-xl font-semibold text-surface-900">1. Responsable del tratamiento</h2>
             <p>
               DASO Ingenieros (en adelante, &quot;el Responsable&quot;), con domicilio en Madrid, España,
               es el responsable del tratamiento de los datos personales recogidos a través de la plataforma
@@ -36,7 +36,7 @@ export default function PrivacidadPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-slate-900">2. Datos que recopilamos</h2>
+            <h2 className="text-xl font-semibold text-surface-900">2. Datos que recopilamos</h2>
             <p>Recopilamos los siguientes datos personales:</p>
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Datos de cuenta:</strong> nombre, email, contraseña (hash cifrado), nombre de empresa.</li>
@@ -47,7 +47,7 @@ export default function PrivacidadPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-slate-900">3. Finalidad del tratamiento</h2>
+            <h2 className="text-xl font-semibold text-surface-900">3. Finalidad del tratamiento</h2>
             <p>Tratamos sus datos con las siguientes finalidades:</p>
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Prestación del servicio:</strong> generación de Certificados de Instalación Eléctrica (CIE), Memorias Técnicas de Diseño (MTD) y Solicitudes de Baja Tensión conforme al REBT.</li>
@@ -58,7 +58,7 @@ export default function PrivacidadPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-slate-900">4. Base legal del tratamiento</h2>
+            <h2 className="text-xl font-semibold text-surface-900">4. Base legal del tratamiento</h2>
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Consentimiento</strong> (Art. 6.1.a RGPD): otorgado al aceptar esta política durante el registro.</li>
               <li><strong>Ejecución del contrato</strong> (Art. 6.1.b RGPD): necesario para prestar el servicio contratado.</li>
@@ -68,7 +68,7 @@ export default function PrivacidadPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-slate-900">5. Conservación de datos</h2>
+            <h2 className="text-xl font-semibold text-surface-900">5. Conservación de datos</h2>
             <p>
               Los datos se conservarán mientras exista una relación contractual activa.
               Tras la baja del servicio, los datos se conservarán bloqueados durante los plazos
@@ -81,7 +81,7 @@ export default function PrivacidadPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-slate-900">6. Destinatarios de los datos</h2>
+            <h2 className="text-xl font-semibold text-surface-900">6. Destinatarios de los datos</h2>
             <p>Sus datos podrán ser comunicados a:</p>
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Administraciones públicas:</strong> cuando sea necesario para la tramitación de certificados ante organismos como ASEICAM, EICI o la Comunidad de Madrid.</li>
@@ -91,7 +91,7 @@ export default function PrivacidadPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-slate-900">7. Derechos del interesado</h2>
+            <h2 className="text-xl font-semibold text-surface-900">7. Derechos del interesado</h2>
             <p>Conforme al RGPD, puede ejercer los siguientes derechos:</p>
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Acceso:</strong> conocer qué datos suyos tratamos.</li>
@@ -111,14 +111,14 @@ export default function PrivacidadPage() {
             </p>
             <p>
               Tiene derecho a presentar una reclamación ante la{' '}
-              <a href="https://www.aepd.es" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700 underline">
+              <a href="https://www.aepd.es" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-300 underline">
                 Agencia Española de Protección de Datos (AEPD)
               </a>.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-slate-900">8. Seguridad</h2>
+            <h2 className="text-xl font-semibold text-surface-900">8. Seguridad</h2>
             <p>
               Implementamos medidas técnicas y organizativas para proteger sus datos:
               cifrado de contraseñas (bcrypt), comunicaciones HTTPS/TLS, tokens de acceso con
@@ -128,7 +128,7 @@ export default function PrivacidadPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-slate-900">9. Transferencias internacionales</h2>
+            <h2 className="text-xl font-semibold text-surface-900">9. Transferencias internacionales</h2>
             <p>
               Los datos se almacenan en servidores ubicados en la Unión Europea (OVH, Francia/España).
               No se realizan transferencias de datos fuera del Espacio Económico Europeo.
@@ -136,7 +136,7 @@ export default function PrivacidadPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-slate-900">10. Modificaciones</h2>
+            <h2 className="text-xl font-semibold text-surface-900">10. Modificaciones</h2>
             <p>
               Nos reservamos el derecho de actualizar esta política. En caso de cambios sustanciales,
               notificaremos a los usuarios registrados por email. La fecha de última actualización
@@ -145,8 +145,8 @@ export default function PrivacidadPage() {
           </section>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-slate-200 text-center">
-          <a href="/register" className="text-sm font-medium text-brand-600 hover:text-brand-700">
+        <div className="mt-12 pt-8 border-t border-surface-200 text-center">
+          <a href="/register" className="text-sm font-medium text-brand-600 hover:text-brand-300">
             ← Volver al registro
           </a>
         </div>

@@ -24,9 +24,9 @@ const DISTRIBUIDORAS = [
   '0314 HIDROELÉCTRICA VEGA, S.A.',
 ];
 
-const inputCls = 'h-9 rounded-md border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-full';
-const selectCls = 'h-9 rounded-md border border-slate-300 bg-white px-2 text-sm w-full';
-const labelCls = 'text-xs text-slate-500 mb-1 block';
+const inputCls = 'h-9 rounded-md border border-surface-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-full';
+const selectCls = 'h-9 rounded-md border border-surface-300 bg-white px-2 text-sm w-full';
+const labelCls = 'text-xs text-surface-500 mb-1 block';
 
 export default function ConfiguracionPage() {
   const { user } = useAuth();
@@ -117,8 +117,8 @@ export default function ConfiguracionPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Configuración</h1>
-        <p className="mt-0.5 text-sm text-slate-500">Gestiona tu cuenta, empresa e instaladores</p>
+        <h1 className="text-xl font-semibold text-surface-900">Configuración</h1>
+        <p className="mt-0.5 text-sm text-surface-500">Gestiona tu cuenta, empresa e instaladores</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -131,15 +131,15 @@ export default function ConfiguracionPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <p className="text-xs text-slate-500">Nombre</p>
-              <p className="text-sm font-medium text-slate-900">{user?.name}</p>
+              <p className="text-xs text-surface-500">Nombre</p>
+              <p className="text-sm font-medium text-surface-900">{user?.name}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">Email</p>
-              <p className="text-sm font-medium text-slate-900">{user?.email}</p>
+              <p className="text-xs text-surface-500">Email</p>
+              <p className="text-sm font-medium text-surface-900">{user?.email}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">Rol</p>
+              <p className="text-xs text-surface-500">Rol</p>
               <Badge variant="secondary" className="mt-0.5">
                 {user?.role === 'OPERATOR' ? 'Operador' : user?.role === 'SIGNER' ? 'Firmante' : 'Administrador'}
               </Badge>
@@ -155,7 +155,7 @@ export default function ConfiguracionPage() {
             <CardTitle>Seguridad</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-slate-500">Cambio de contraseña disponible próximamente.</p>
+            <p className="text-sm text-surface-500">Cambio de contraseña disponible próximamente.</p>
           </CardContent>
         </Card>
       </div>
@@ -168,7 +168,7 @@ export default function ConfiguracionPage() {
           </div>
           <div className="flex-1">
             <CardTitle>Empresa Instaladora</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5">Estos datos se auto-rellenarán en cada nuevo expediente</p>
+            <p className="text-xs text-surface-500 mt-0.5">Estos datos se auto-rellenarán en cada nuevo expediente</p>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -248,7 +248,7 @@ export default function ConfiguracionPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 border-t border-slate-100 pt-4">
+          <div className="flex items-center gap-3 border-t border-surface-200 pt-4">
             <Button size="sm" onClick={saveEmpresa} disabled={empresaSaving || !empresaDirty}>
               {empresaSaving ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" />Guardando…</> :
                empresaSaved ? <><CheckCircle2 className="mr-2 h-3 w-3 text-emerald-500" />Guardado</> :
@@ -267,16 +267,16 @@ export default function ConfiguracionPage() {
           </div>
           <div className="flex-1">
             <CardTitle>Instaladores / Técnicos</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5">Personas que firman los certificados</p>
+            <p className="text-xs text-surface-500 mt-0.5">Personas que firman los certificados</p>
           </div>
         </CardHeader>
         <CardContent>
           {installers.length === 0 ? (
-            <p className="text-sm text-slate-400">No hay instaladores registrados.</p>
+            <p className="text-sm text-surface-400">No hay instaladores registrados.</p>
           ) : (
             <div className="space-y-3">
               {installers.map((inst) => (
-                <div key={inst.id} className="rounded-lg border border-slate-200 p-3">
+                <div key={inst.id} className="rounded-lg border border-surface-200 p-3">
                   {editingId === inst.id ? (
                     <div className="space-y-3">
                       <div className="grid grid-cols-3 gap-3">
@@ -304,11 +304,11 @@ export default function ConfiguracionPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div>
-                          <p className="text-sm font-medium text-slate-900">{inst.instaladorNombre || inst.name}</p>
-                          <p className="text-xs text-slate-500">{inst.email}</p>
+                          <p className="text-sm font-medium text-surface-900">{inst.instaladorNombre || inst.name}</p>
+                          <p className="text-xs text-surface-500">{inst.email}</p>
                         </div>
-                        {inst.instaladorNif && <span className="text-xs text-slate-400">NIF: {inst.instaladorNif}</span>}
-                        {inst.instaladorCertNum && <span className="text-xs text-slate-400">Cert: {inst.instaladorCertNum}</span>}
+                        {inst.instaladorNif && <span className="text-xs text-surface-400">NIF: {inst.instaladorNif}</span>}
+                        {inst.instaladorCertNum && <span className="text-xs text-surface-400">Cert: {inst.instaladorCertNum}</span>}
                         <Badge variant="secondary" className="text-xs">
                           {inst.role === 'OPERATOR' ? 'Operador' : inst.role === 'SIGNER' ? 'Firmante' : 'Admin'}
                         </Badge>

@@ -1,54 +1,33 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  * {
-    @apply border-slate-200;
-  }
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
-  body {
-    @apply bg-slate-50 text-slate-900 antialiased;
-    font-feature-settings: 'cv11', 'ss01';
-  }
-
-  /* Scrollbar styling */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-slate-300;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-400;
-  }
+:root {
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
-@layer components {
-  /* Focus ring for accessibility */
-  .focus-ring {
-    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-white;
-  }
-
-  /* Status badges */
-  .status-badge {
-    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium;
-  }
-
-  /* Card hover effect */
-  .card-interactive {
-    @apply rounded-lg border border-slate-200 bg-white shadow-card transition-all duration-200 hover:border-slate-300 hover:shadow-card-hover;
-  }
+body {
+  font-family: var(--font-sans);
+  @apply bg-surface-50 text-surface-900 antialiased;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply bg-surface-300 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-surface-400; }
+
+/* Status indicators */
+.status-dot {
+  @apply w-2 h-2 rounded-full inline-block;
+}
+.status-online { @apply bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]; }
+.status-offline { @apply bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]; }
+.status-warning { @apply bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.6)]; }
+
+.status-badge {
+  @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium;
 }

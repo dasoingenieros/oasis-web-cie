@@ -48,10 +48,10 @@ export default function InstalacionesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">
+          <h1 className="text-xl font-semibold text-surface-900">
             Instalaciones
           </h1>
-          <p className="mt-0.5 text-sm text-slate-500">
+          <p className="mt-0.5 text-sm text-surface-500">
             {installations.length} instalaciones en total
           </p>
         </div>
@@ -63,7 +63,7 @@ export default function InstalacionesPage() {
 
       {/* Search */}
       <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400" />
         <Input
           placeholder="Buscar por titular, dirección o CUPS…"
           value={search}
@@ -78,11 +78,11 @@ export default function InstalacionesPage() {
           <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
         </div>
       ) : error ? (
-        <p className="py-10 text-center text-sm text-red-500">{error}</p>
+        <p className="py-10 text-center text-sm text-red-600">{error}</p>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <FolderOpen className="h-10 w-10 text-slate-300" />
-          <p className="mt-3 text-sm text-slate-500">
+          <FolderOpen className="h-10 w-10 text-surface-400" />
+          <p className="mt-3 text-sm text-surface-500">
             {search
               ? 'No se encontraron resultados'
               : 'No hay instalaciones todavía'}

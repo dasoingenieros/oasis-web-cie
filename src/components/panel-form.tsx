@@ -52,8 +52,8 @@ const noSpinnerStyle = `
   .no-spinner[type=number] { -moz-appearance: textfield; }
 `;
 
-const selectCls = 'h-7 rounded border border-slate-300 bg-white px-1.5 text-xs';
-const inputCls = 'no-spinner h-7 rounded border border-slate-300 bg-white px-1.5 text-xs tabular-nums focus:outline-none focus:ring-1 focus:ring-blue-400';
+const selectCls = 'h-7 rounded border border-surface-300 bg-white px-1.5 text-xs';
+const inputCls = 'no-spinner h-7 rounded border border-surface-300 bg-white px-1.5 text-xs tabular-nums focus:outline-none focus:ring-1 focus:ring-blue-400';
 
 // ─── State types ─────────────────────────────────────────────
 
@@ -342,7 +342,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-surface-400" />
       </div>
     );
   }
@@ -354,15 +354,15 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
       <style>{noSpinnerStyle}</style>
 
       {/* ── DERIVACIÓN INDIVIDUAL ──────────────────────────────── */}
-      <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+      <div className="rounded-lg border border-amber-500/30 bg-amber-50 p-4">
         <div className="flex items-center gap-2 mb-3">
           <Cable className="h-4 w-4 text-amber-600" />
-          <h3 className="text-sm font-semibold text-amber-900">Derivación Individual (DI)</h3>
+          <h3 className="text-sm font-semibold text-amber-300">Derivación Individual (DI)</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {/* Sección */}
           <div>
-            <label className="text-[11px] text-slate-500 block mb-1">Sección (mm²)</label>
+            <label className="text-[11px] text-surface-500 block mb-1">Sección (mm²)</label>
             <select
               value={di.seccionDi ?? ''}
               onChange={(e) => updateDi('seccionDi', e.target.value ? Number(e.target.value) : null)}
@@ -374,7 +374,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
           </div>
           {/* Material */}
           <div>
-            <label className="text-[11px] text-slate-500 block mb-1">Material</label>
+            <label className="text-[11px] text-surface-500 block mb-1">Material</label>
             <select
               value={di.materialDi}
               onChange={(e) => updateDi('materialDi', e.target.value)}
@@ -385,7 +385,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
           </div>
           {/* Longitud */}
           <div>
-            <label className="text-[11px] text-slate-500 block mb-1">Longitud (m)</label>
+            <label className="text-[11px] text-surface-500 block mb-1">Longitud (m)</label>
             <input
               type="number"
               value={di.longitudDi ?? ''}
@@ -398,7 +398,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
           </div>
           {/* Aislamiento */}
           <div>
-            <label className="text-[11px] text-slate-500 block mb-1">Aislamiento</label>
+            <label className="text-[11px] text-surface-500 block mb-1">Aislamiento</label>
             <select
               value={di.aislamientoDi}
               onChange={(e) => updateDi('aislamientoDi', e.target.value)}
@@ -409,7 +409,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
           </div>
           {/* Tipo instalación */}
           <div>
-            <label className="text-[11px] text-slate-500 block mb-1">Tipo instalación</label>
+            <label className="text-[11px] text-surface-500 block mb-1">Tipo instalación</label>
             <select
               value={di.tipoInstalacionDi}
               onChange={(e) => updateDi('tipoInstalacionDi', e.target.value)}
@@ -422,15 +422,15 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
       </div>
 
       {/* ── IGA ─────────────────────────────────────────────────── */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+      <div className="rounded-lg border border-blue-500/30 bg-blue-50 p-4">
         <div className="flex items-center gap-2 mb-3">
           <Zap className="h-4 w-4 text-blue-600" />
-          <h3 className="text-sm font-semibold text-blue-900">Interruptor General Automático (IGA)</h3>
+          <h3 className="text-sm font-semibold text-blue-300">Interruptor General Automático (IGA)</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {/* Calibre IGA */}
           <div>
-            <label className="text-[11px] text-slate-500 block mb-1">Calibre (A)</label>
+            <label className="text-[11px] text-surface-500 block mb-1">Calibre (A)</label>
             <select
               value={iga.calibreA}
               onChange={(e) => updateIga('calibreA', Number(e.target.value))}
@@ -441,14 +441,14 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
           </div>
           {/* P. Máx. Admisible */}
           <div>
-            <label className="text-[11px] text-slate-500 block mb-1">P. Máx. Adm.</label>
-            <div className="h-7 flex items-center text-xs font-medium text-blue-800 bg-blue-100 rounded px-2">
+            <label className="text-[11px] text-surface-500 block mb-1">P. Máx. Adm.</label>
+            <div className="h-7 flex items-center text-xs font-medium text-blue-300 bg-blue-500/15 rounded px-2">
               {maxPowerKw} kW
             </div>
           </div>
           {/* Tensión */}
           <div>
-            <label className="text-[11px] text-slate-500 block mb-1">Tensión</label>
+            <label className="text-[11px] text-surface-500 block mb-1">Tensión</label>
             <select
               value={iga.voltage}
               onChange={(e) => updateIga('voltage', Number(e.target.value))}
@@ -460,7 +460,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
           </div>
           {/* Curva */}
           <div>
-            <label className="text-[11px] text-slate-500 block mb-1">Curva</label>
+            <label className="text-[11px] text-surface-500 block mb-1">Curva</label>
             <select
               value={iga.curve}
               onChange={(e) => updateIga('curve', e.target.value)}
@@ -471,7 +471,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
           </div>
           {/* Poder de corte */}
           <div>
-            <label className="text-[11px] text-slate-500 block mb-1">P. Corte</label>
+            <label className="text-[11px] text-surface-500 block mb-1">P. Corte</label>
             <select
               value={iga.powerCutKa}
               onChange={(e) => updateIga('powerCutKa', Number(e.target.value))}
@@ -482,15 +482,15 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
           </div>
           {/* Polos */}
           <div>
-            <label className="text-[11px] text-slate-500 block mb-1">Polos</label>
-            <div className="h-7 flex items-center text-xs text-slate-600 bg-slate-100 rounded px-2">
+            <label className="text-[11px] text-surface-500 block mb-1">Polos</label>
+            <div className="h-7 flex items-center text-xs text-surface-700 bg-surface-100 rounded px-2">
               {iga.poles}P
             </div>
           </div>
         </div>
         {/* Warning potencia */}
         {!contractedOk && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded p-2">
+          <div className="mt-3 flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded p-2">
             <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
             P. contratada ({((contractedPower ?? 0) / 1000).toFixed(2)} kW) &gt; P. máx. admisible ({maxPowerKw} kW). Sube el calibre del IGA.
           </div>
@@ -500,7 +500,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
       {/* ── DIFERENCIALES ───────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-700">Diferenciales</h3>
+          <h3 className="text-sm font-semibold text-surface-700">Diferenciales</h3>
           <div className="flex gap-2">
             {diffs.length === 0 && circuits.length > 0 && (
               <Button variant="outline" size="sm" onClick={loadTemplate} disabled={saving}>
@@ -516,9 +516,9 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
         </div>
 
         {diffs.length === 0 ? (
-          <div className="rounded-lg border-2 border-dashed border-slate-200 py-8 text-center">
-            <p className="text-sm text-slate-500">Sin diferenciales definidos.</p>
-            <p className="text-xs text-slate-400 mt-1">Carga la plantilla o añade diferenciales manualmente.</p>
+          <div className="rounded-lg border-2 border-dashed border-surface-200 py-8 text-center">
+            <p className="text-sm text-surface-500">Sin diferenciales definidos.</p>
+            <p className="text-xs text-surface-400 mt-1">Carga la plantilla o añade diferenciales manualmente.</p>
           </div>
         ) : (
           diffs.map((diff, idx) => {
@@ -534,17 +534,17 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
                 key={idx}
                 className={`rounded-lg border ${
                   diff.isProtected === false
-                    ? 'border-red-200 bg-red-50/30'
+                    ? 'border-red-500/30 bg-red-500/5'
                     : diff.isProtected === true
-                    ? 'border-green-200 bg-green-50/30'
-                    : 'border-slate-200 bg-white'
+                    ? 'border-green-500/30 bg-green-500/5'
+                    : 'border-surface-200 bg-white'
                 }`}
               >
                 {/* Cabecera diferencial */}
                 <div className="flex items-center gap-2 p-3">
                   <button
                     onClick={() => updateDiff(idx, 'expanded', !diff.expanded)}
-                    className="text-slate-400 hover:text-slate-600"
+                    className="text-surface-400 hover:text-surface-700"
                   >
                     {diff.expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </button>
@@ -585,25 +585,25 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
 
                   {/* Protección */}
                   {diff.isProtected === true && (
-                    <span className="flex items-center gap-1 text-[11px] text-green-700 bg-green-100 rounded px-2 py-0.5">
+                    <span className="flex items-center gap-1 text-[11px] text-green-400 bg-green-500/15 rounded px-2 py-0.5">
                       <ShieldCheck className="h-3 w-3" /> Protegido
                     </span>
                   )}
                   {diff.isProtected === false && (
-                    <span className="flex items-center gap-1 text-[11px] text-red-700 bg-red-100 rounded px-2 py-0.5" title={diff.protectionNote ?? ''}>
+                    <span className="flex items-center gap-1 text-[11px] text-red-600 bg-red-500/15 rounded px-2 py-0.5" title={diff.protectionNote ?? ''}>
                       <ShieldAlert className="h-3 w-3" /> No protegido
                     </span>
                   )}
 
                   {/* Info */}
-                  <span className="text-[11px] text-slate-400 ml-auto">
+                  <span className="text-[11px] text-surface-400 ml-auto">
                     {diffCircuits.length} circ. · ΣPIAs {sumPias}A
                   </span>
 
                   {/* Eliminar */}
                   <button
                     onClick={() => removeDiff(idx)}
-                    className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500"
+                    className="rounded p-1 text-surface-400 hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -611,8 +611,8 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
 
                 {/* Circuitos del diferencial */}
                 {diff.expanded && (
-                  <div className="border-t border-slate-100 px-3 pb-3 pt-2">
-                    <p className="text-[11px] text-slate-400 mb-2">Circuitos asignados (clic para asignar/desasignar):</p>
+                  <div className="border-t border-surface-600 px-3 pb-3 pt-2">
+                    <p className="text-[11px] text-surface-400 mb-2">Circuitos asignados (clic para asignar/desasignar):</p>
                     <div className="flex flex-wrap gap-1.5">
                       {circuits.map((c) => {
                         const isAssigned = diff.circuitIds.includes(c.id);
@@ -624,10 +624,10 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
                             disabled={isOther}
                             className={`rounded px-2 py-1 text-[11px] transition-colors ${
                               isAssigned
-                                ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                                ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                                 : isOther
-                                ? 'bg-slate-50 text-slate-300 border border-slate-100 cursor-not-allowed'
-                                : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-blue-50 hover:border-blue-200'
+                                ? 'bg-surface-50 text-surface-400 border border-surface-600 cursor-not-allowed'
+                                : 'bg-surface-50 text-surface-700 border border-surface-200 hover:bg-blue-50 hover:border-blue-500/30'
                             }`}
                             title={isOther ? 'Asignado a otro diferencial' : ''}
                           >
@@ -645,7 +645,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
 
         {/* Circuitos sin asignar */}
         {unassigned.length > 0 && diffs.length > 0 && (
-          <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded p-2">
+          <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded p-2">
             <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
             {unassigned.length} circuito{unassigned.length > 1 ? 's' : ''} sin diferencial asignado:
             {' '}{unassigned.map((c) => c.code ?? c.name).join(', ')}
@@ -654,7 +654,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
       </div>
 
       {/* ── BOTONES ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 border-t border-slate-200 pt-4">
+      <div className="flex items-center gap-3 border-t border-surface-200 pt-4">
         <Button onClick={handleSave} disabled={saving || !anyDirty} variant="outline">
           {saving ? (
             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando…</>

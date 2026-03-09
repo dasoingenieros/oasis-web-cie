@@ -106,64 +106,64 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
     <div className="space-y-6">
       {/* Avisos */}
       {!loading && documents.length > 0 && hasCalculation && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 flex items-start gap-3">
+        <div className="rounded-lg border border-blue-500/30 bg-blue-50 px-4 py-3 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-sm font-medium text-blue-800">Documentos emitidos ({documents.length})</p>
+            <p className="text-sm font-medium text-blue-300">Documentos emitidos ({documents.length})</p>
             <p className="text-xs text-blue-600 mt-0.5">Si recalculas o modificas datos, los nuevos documentos se generarán como nueva versión. Los documentos anteriores se mantendrán en el histórico.</p>
           </div>
         </div>
       )}
       {!hasCalculation && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+        <div className="rounded-lg border border-amber-500/30 bg-amber-50 px-4 py-3 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-sm font-medium text-amber-800">Cálculo requerido</p>
+            <p className="text-sm font-medium text-amber-300">Cálculo requerido</p>
             <p className="text-xs text-amber-600 mt-0.5">Para generar documentos, primero ejecuta el cálculo en la pestaña &quot;Cuadro eléctrico&quot;.</p>
           </div>
         </div>
       )}
       {hasCalculation && !isCompliant && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
+        <div className="rounded-lg border border-red-500/30 bg-red-50 px-4 py-3 flex items-start gap-3">
           <FileWarning className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-sm font-medium text-red-800">Circuitos no conformes</p>
+            <p className="text-sm font-medium text-red-300">Circuitos no conformes</p>
             <p className="text-xs text-red-600 mt-0.5">Puedes generar la MTD para revisión, pero el CIE y la Solicitud solo estarán disponibles cuando todos los circuitos cumplan.</p>
           </div>
         </div>
       )}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
+        <div className="rounded-lg border border-red-500/30 bg-red-50 px-4 py-3 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-red-700">{error}</p>
+          <p className="text-sm text-red-600">{error}</p>
         </div>
       )}
 
       {/* Generar documentos — 4 cards */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-surface-50 mb-3 flex items-center gap-2">
           <FilePlus2 className="h-4 w-4" />Generar documentos
         </h3>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {/* MTD */}
-          <div className={cn('relative rounded-lg border p-4 flex flex-col gap-3', hasCalculation ? 'border-slate-200 bg-white hover:border-brand-300 transition-colors' : 'border-slate-100 bg-slate-50/50 opacity-60')}>
+          <div className={cn('relative rounded-lg border p-4 flex flex-col gap-3', hasCalculation ? 'border-surface-200 bg-white hover:border-brand-500/50 transition-colors' : 'border-surface-200 bg-surface-50/50 opacity-60')}>
             <div className="flex items-center gap-3">
-              <div className={cn('rounded-lg p-2', hasCalculation ? 'bg-brand-50 text-brand-600' : 'bg-slate-100 text-slate-400')}><ScrollText className="h-5 w-5" /></div>
-              <p className="text-sm font-semibold text-slate-700">Memoria Técnica</p>
+              <div className={cn('rounded-lg p-2', hasCalculation ? 'bg-brand-50 text-brand-600' : 'bg-surface-100 text-surface-400')}><ScrollText className="h-5 w-5" /></div>
+              <p className="text-sm font-semibold text-surface-700">Memoria Técnica</p>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">MTD oficial con cálculos y protecciones.</p>
+            <p className="text-xs text-surface-500 leading-relaxed">MTD oficial con cálculos y protecciones.</p>
             <Button size="sm" className="w-full mt-auto" disabled={!hasCalculation || generating === 'MEMORIA_TECNICA'} onClick={() => handleGenerate('MEMORIA_TECNICA')}>
               {generating === 'MEMORIA_TECNICA' ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" />Generando...</> : <><FilePlus2 className="mr-2 h-3 w-3" />Generar PDF</>}
             </Button>
           </div>
 
           {/* CIE */}
-          <div className={cn('relative rounded-lg border p-4 flex flex-col gap-3', hasCalculation && isCompliant ? 'border-slate-200 bg-white hover:border-brand-300 transition-colors' : 'border-slate-100 bg-slate-50/50 opacity-60')}>
+          <div className={cn('relative rounded-lg border p-4 flex flex-col gap-3', hasCalculation && isCompliant ? 'border-surface-200 bg-white hover:border-brand-500/50 transition-colors' : 'border-surface-200 bg-surface-50/50 opacity-60')}>
             <div className="flex items-center gap-3">
-              <div className={cn('rounded-lg p-2', hasCalculation && isCompliant ? 'bg-brand-50 text-brand-600' : 'bg-slate-100 text-slate-400')}><FileText className="h-5 w-5" /></div>
-              <p className="text-sm font-semibold text-slate-700">Certificado (CIE)</p>
+              <div className={cn('rounded-lg p-2', hasCalculation && isCompliant ? 'bg-brand-50 text-brand-600' : 'bg-surface-100 text-surface-400')}><FileText className="h-5 w-5" /></div>
+              <p className="text-sm font-semibold text-surface-700">Certificado (CIE)</p>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">CIE/BRIE oficial para tramitación.</p>
+            <p className="text-xs text-surface-500 leading-relaxed">CIE/BRIE oficial para tramitación.</p>
             {hasCalculation && !isCompliant && <p className="text-xs text-amber-600">⚠ Requiere cumplimiento REBT</p>}
             <div className="flex gap-2 mt-auto">
               <Button size="sm" variant="outline" className="flex-1" disabled={!hasCalculation || !isCompliant || generating?.startsWith('CERTIFICADO')} onClick={() => handleGenerateCie('xls')}>
@@ -176,12 +176,12 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
           </div>
 
           {/* Solicitud BT */}
-          <div className={cn('relative rounded-lg border p-4 flex flex-col gap-3', hasCalculation && isCompliant ? 'border-slate-200 bg-white hover:border-brand-300 transition-colors' : 'border-slate-100 bg-slate-50/50 opacity-60')}>
+          <div className={cn('relative rounded-lg border p-4 flex flex-col gap-3', hasCalculation && isCompliant ? 'border-surface-200 bg-white hover:border-brand-500/50 transition-colors' : 'border-surface-200 bg-surface-50/50 opacity-60')}>
             <div className="flex items-center gap-3">
-              <div className={cn('rounded-lg p-2', hasCalculation && isCompliant ? 'bg-brand-50 text-brand-600' : 'bg-slate-100 text-slate-400')}><FileInput className="h-5 w-5" /></div>
-              <p className="text-sm font-semibold text-slate-700">Solicitud BT</p>
+              <div className={cn('rounded-lg p-2', hasCalculation && isCompliant ? 'bg-brand-50 text-brand-600' : 'bg-surface-100 text-surface-400')}><FileInput className="h-5 w-5" /></div>
+              <p className="text-sm font-semibold text-surface-700">Solicitud BT</p>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">Solicitud oficial para la DGTEyEC.</p>
+            <p className="text-xs text-surface-500 leading-relaxed">Solicitud oficial para la DGTEyEC.</p>
             {hasCalculation && !isCompliant && <p className="text-xs text-amber-600">⚠ Requiere cumplimiento REBT</p>}
             <div className="flex gap-2 mt-auto">
               <Button size="sm" variant="outline" className="flex-1" disabled={!hasCalculation || !isCompliant || generating?.startsWith('SOLICITUD')} onClick={() => handleGenerateSolicitud('docx')}>
@@ -199,16 +199,16 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
           <div className={cn(
             'relative rounded-lg border p-4 flex flex-col gap-3',
             hasCalculation
-              ? 'border-slate-200 bg-white hover:border-brand-300 transition-colors'
-              : 'border-slate-100 bg-slate-50/50 opacity-60',
+              ? 'border-surface-200 bg-white hover:border-brand-500/50 transition-colors'
+              : 'border-surface-200 bg-surface-50/50 opacity-60',
           )}>
             <div className="flex items-center gap-3">
-              <div className={cn('rounded-lg p-2', hasCalculation ? 'bg-brand-50 text-brand-600' : 'bg-slate-100 text-slate-400')}>
+              <div className={cn('rounded-lg p-2', hasCalculation ? 'bg-brand-50 text-brand-600' : 'bg-surface-100 text-surface-400')}>
                 <Zap className="h-5 w-5" />
               </div>
-              <p className="text-sm font-semibold text-slate-700">Esquema Unifilar</p>
+              <p className="text-sm font-semibold text-surface-700">Esquema Unifilar</p>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">Esquema eléctrico unifilar. Editable y exportable a DXF (AutoCAD), SVG y PNG.</p>
+            <p className="text-xs text-surface-500 leading-relaxed">Esquema eléctrico unifilar. Editable y exportable a DXF (AutoCAD), SVG y PNG.</p>
             <Button
               size="sm"
               className="w-full mt-auto"
@@ -224,43 +224,43 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
 
       {/* Documentos generados */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-surface-50 mb-3 flex items-center gap-2">
           <FileDown className="h-4 w-4" />Documentos generados
-          {documents.length > 0 && <span className="ml-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-2xs font-medium text-slate-600">{documents.length}</span>}
+          {documents.length > 0 && <span className="ml-1 rounded-full bg-surface-100 px-1.5 py-0.5 text-2xs font-medium text-surface-700">{documents.length}</span>}
         </h3>
         {loading ? (
-          <div className="flex items-center justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
+          <div className="flex items-center justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-surface-400" /></div>
         ) : documents.length === 0 ? (
-          <div className="text-center py-10 rounded-lg border border-dashed border-slate-200">
-            <FileText className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-            <p className="text-xs text-slate-400">Aún no se han generado documentos.</p>
+          <div className="text-center py-10 rounded-lg border border-dashed border-surface-200">
+            <FileText className="h-8 w-8 text-surface-400 mx-auto mb-2" />
+            <p className="text-xs text-surface-400">Aún no se han generado documentos.</p>
           </div>
         ) : (
           <div className="space-y-2">
             {documents.map((doc) => (
-              <div key={doc.id} className="flex items-center gap-4 rounded-lg border border-slate-200 bg-white p-3 hover:bg-slate-50 transition-colors">
-                <div className="flex-shrink-0 rounded-lg bg-slate-100 p-2">
-                  {doc.type === 'MEMORIA_TECNICA' ? <ScrollText className="h-5 w-5 text-slate-500" /> :
-                   doc.type === 'CERTIFICADO' ? <FileText className="h-5 w-5 text-slate-500" /> :
-                   doc.type === 'SOLICITUD' ? <FileInput className="h-5 w-5 text-slate-500" /> :
-                   <Zap className="h-5 w-5 text-slate-500" />}
+              <div key={doc.id} className="flex items-center gap-4 rounded-lg border border-surface-200 bg-white p-3 hover:bg-surface-50 transition-colors">
+                <div className="flex-shrink-0 rounded-lg bg-surface-100 p-2">
+                  {doc.type === 'MEMORIA_TECNICA' ? <ScrollText className="h-5 w-5 text-surface-500" /> :
+                   doc.type === 'CERTIFICADO' ? <FileText className="h-5 w-5 text-surface-500" /> :
+                   doc.type === 'SOLICITUD' ? <FileInput className="h-5 w-5 text-surface-500" /> :
+                   <Zap className="h-5 w-5 text-surface-500" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-700 truncate">
+                  <p className="text-sm font-medium text-surface-700 truncate">
                     {DOCUMENT_TYPE_LABELS[doc.type] || doc.type}
                     {doc.version && doc.version > 1 && <span className="ml-1.5 text-xs text-amber-600 font-medium">v{doc.version}</span>}
-                    {doc.mimeType?.includes('ms-excel') && <span className="ml-1.5 text-xs text-slate-400 font-normal">.xls</span>}
-                    {doc.mimeType?.includes('wordprocessingml') && <span className="ml-1.5 text-xs text-slate-400 font-normal">.docx</span>}
-                    {doc.mimeType === 'application/pdf' && doc.type !== 'MEMORIA_TECNICA' && <span className="ml-1.5 text-xs text-slate-400 font-normal">.pdf</span>}
+                    {doc.mimeType?.includes('ms-excel') && <span className="ml-1.5 text-xs text-surface-400 font-normal">.xls</span>}
+                    {doc.mimeType?.includes('wordprocessingml') && <span className="ml-1.5 text-xs text-surface-400 font-normal">.docx</span>}
+                    {doc.mimeType === 'application/pdf' && doc.type !== 'MEMORIA_TECNICA' && <span className="ml-1.5 text-xs text-surface-400 font-normal">.pdf</span>}
                   </p>
                   <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-xs text-slate-400 flex items-center gap-1"><Clock className="h-3 w-3" />{formatDatetime(doc.generatedAt)}</span>
-                    {doc.sizeBytes && <span className="text-xs text-slate-400">{formatFileSize(doc.sizeBytes)}</span>}
+                    <span className="text-xs text-surface-400 flex items-center gap-1"><Clock className="h-3 w-3" />{formatDatetime(doc.generatedAt)}</span>
+                    {doc.sizeBytes && <span className="text-xs text-surface-400">{formatFileSize(doc.sizeBytes)}</span>}
                   </div>
                 </div>
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                 <Button variant="outline" size="sm" onClick={() => handleDownload(doc)}><FileDown className="mr-1 h-3 w-3" />Descargar</Button>
-                <Button variant="outline" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => { setDeleteTarget(doc); setDeleteConfirm(''); }}><Trash2 className="h-3 w-3" /></Button>
+                <Button variant="outline" size="sm" className="text-red-500 hover:text-red-300 hover:bg-red-50" onClick={() => { setDeleteTarget(doc); setDeleteConfirm(''); }}><Trash2 className="h-3 w-3" /></Button>
               </div>
             ))}
           </div>
@@ -270,10 +270,10 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
         {deleteTarget && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
-              <h3 className="text-sm font-semibold text-slate-800 mb-2">Eliminar documento</h3>
-              <p className="text-xs text-slate-600 mb-1">¿Seguro que quieres eliminar <strong>{DOCUMENT_TYPE_LABELS[deleteTarget.type] || deleteTarget.type}</strong>?</p>
-              <p className="text-xs text-slate-500 mb-3">Escribe <strong>ELIMINAR</strong> para confirmar:</p>
-              <input className="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 mb-3" value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} placeholder="ELIMINAR" autoFocus />
+              <h3 className="text-sm font-semibold text-surface-50 mb-2">Eliminar documento</h3>
+              <p className="text-xs text-surface-700 mb-1">¿Seguro que quieres eliminar <strong>{DOCUMENT_TYPE_LABELS[deleteTarget.type] || deleteTarget.type}</strong>?</p>
+              <p className="text-xs text-surface-500 mb-3">Escribe <strong>ELIMINAR</strong> para confirmar:</p>
+              <input className="w-full h-9 rounded-md border border-surface-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 mb-3" value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} placeholder="ELIMINAR" autoFocus />
               <div className="flex justify-end gap-2">
                 <Button variant="outline" size="sm" onClick={() => { setDeleteTarget(null); setDeleteConfirm(''); }}>Cancelar</Button>
                 <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" disabled={deleteConfirm !== 'ELIMINAR' || deleting} onClick={handleDelete}>

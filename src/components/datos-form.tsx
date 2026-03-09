@@ -96,22 +96,22 @@ interface DatosFormProps { installation: Installation; isSaving: boolean; onSave
 function Section({ title, num, defaultOpen = true, children, badge }: { title: string; num: number; defaultOpen?: boolean; children: React.ReactNode; badge?: React.ReactNode; }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="border border-slate-200 rounded-lg overflow-hidden">
-      <button type="button" onClick={() => setOpen(!open)} className="flex items-center gap-3 w-full px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left">
+    <section className="border border-surface-200 rounded-lg overflow-hidden">
+      <button type="button" onClick={() => setOpen(!open)} className="flex items-center gap-3 w-full px-4 py-3 bg-surface-50 hover:bg-surface-100 transition-colors text-left">
         <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">{num}</span>
-        <span className="text-sm font-semibold text-slate-900 flex-1">{title}</span>
+        <span className="text-sm font-semibold text-surface-900 flex-1">{title}</span>
         {badge}
-        {open ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
+        {open ? <ChevronDown className="h-4 w-4 text-surface-400" /> : <ChevronRight className="h-4 w-4 text-surface-400" />}
       </button>
       {open && <div className="p-4 space-y-4">{children}</div>}
     </section>
   );
 }
 
-const inputCls = 'h-9 rounded-md border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
-const inputLockedCls = 'h-9 rounded-md border border-slate-200 bg-slate-100 px-3 text-sm text-slate-500 w-full cursor-not-allowed [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
-const selectFieldCls = 'h-9 rounded-md border border-slate-300 bg-white px-2 text-sm w-full';
-const selectLockedCls = 'h-9 rounded-md border border-slate-200 bg-slate-100 px-2 text-sm text-slate-500 w-full cursor-not-allowed';
+const inputCls = 'h-9 rounded-md border border-surface-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
+const inputLockedCls = 'h-9 rounded-md border border-surface-200 bg-surface-100 px-3 text-sm text-surface-500 w-full cursor-not-allowed [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
+const selectFieldCls = 'h-9 rounded-md border border-surface-300 bg-white px-2 text-sm w-full';
+const selectLockedCls = 'h-9 rounded-md border border-surface-200 bg-surface-100 px-2 text-sm text-surface-500 w-full cursor-not-allowed';
 
 // ─── Diccionario de ayuda por campo ─────────────────────────────
 const FIELD_HELP: Record<string, string> = {
@@ -177,13 +177,13 @@ function HelpTip({ field }: { field: string }) {
         type="button"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(!open); }}
         onBlur={() => setTimeout(() => setOpen(false), 200)}
-        className="text-slate-400 hover:text-blue-500 transition-colors"
+        className="text-surface-400 hover:text-blue-500 transition-colors"
         aria-label="Ayuda"
       >
         <HelpCircle className="inline h-3 w-3" />
       </button>
       {open && (
-        <span className="absolute z-50 left-0 top-5 w-64 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 shadow-lg leading-relaxed">
+        <span className="absolute z-50 left-0 top-5 w-64 rounded-lg border border-surface-200 bg-white px-3 py-2 text-xs text-surface-700 shadow-lg leading-relaxed">
           {text}
         </span>
       )}
@@ -193,18 +193,18 @@ function HelpTip({ field }: { field: string }) {
 
 function TextField({ label, field, value, onChange, placeholder, className, rf, locked }: { label: string; field: string; value: string; onChange: (f: string, v: string) => void; placeholder?: string; className?: string; rf: string[]; locked?: boolean; }) {
   const req = rf.includes(field);
-  return (<div className={className ?? ''}><Label className="text-xs text-slate-600 mb-1 block">{label}{req && <span className="text-red-500 ml-0.5">*</span>}{locked && <Lock className="inline h-3 w-3 ml-1 text-slate-400" />}<HelpTip field={field} /></Label><input className={locked ? inputLockedCls : `${inputCls} ${req && !value ? 'border-amber-300' : ''}`} value={value} onChange={(e) => !locked && onChange(field, e.target.value)} placeholder={placeholder} disabled={locked} title={locked ? 'Modificar en Cuadro eléctrico' : undefined} /></div>);
+  return (<div className={className ?? ''}><Label className="text-xs text-surface-700 mb-1 block">{label}{req && <span className="text-red-600 ml-0.5">*</span>}{locked && <Lock className="inline h-3 w-3 ml-1 text-surface-400" />}<HelpTip field={field} /></Label><input className={locked ? inputLockedCls : `${inputCls} ${req && !value ? 'border-amber-300' : ''}`} value={value} onChange={(e) => !locked && onChange(field, e.target.value)} placeholder={placeholder} disabled={locked} title={locked ? 'Modificar en Cuadro eléctrico' : undefined} /></div>);
 }
 
 function NumberField({ label, field, value, onChange, placeholder, step, className, suffix, rf, locked }: { label: string; field: string; value: number | string; onChange: (f: string, v: string) => void; placeholder?: string; step?: string; className?: string; suffix?: string; rf: string[]; locked?: boolean; }) {
   const req = rf.includes(field);
-  return (<div className={className ?? ''}><Label className="text-xs text-slate-600 mb-1 block">{label}{req && <span className="text-red-500 ml-0.5">*</span>}{locked && <Lock className="inline h-3 w-3 ml-1 text-slate-400" />}<HelpTip field={field} /></Label><div className="relative"><input className={locked ? inputLockedCls : `${inputCls} ${req && !value ? 'border-amber-300' : ''}`} type="number" step={step ?? '1'} value={value} onChange={(e) => !locked && onChange(field, e.target.value)} placeholder={placeholder} disabled={locked} title={locked ? 'Modificar en Cuadro eléctrico' : undefined} />{suffix && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">{suffix}</span>}</div></div>);
+  return (<div className={className ?? ''}><Label className="text-xs text-surface-700 mb-1 block">{label}{req && <span className="text-red-600 ml-0.5">*</span>}{locked && <Lock className="inline h-3 w-3 ml-1 text-surface-400" />}<HelpTip field={field} /></Label><div className="relative"><input className={locked ? inputLockedCls : `${inputCls} ${req && !value ? 'border-amber-300' : ''}`} type="number" step={step ?? '1'} value={value} onChange={(e) => !locked && onChange(field, e.target.value)} placeholder={placeholder} disabled={locked} title={locked ? 'Modificar en Cuadro eléctrico' : undefined} />{suffix && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-surface-400">{suffix}</span>}</div></div>);
 }
 
 function SelectField({ label, field, value, onChange, options, placeholder, className, rf, locked }: { label: string; field: string; value: string; onChange: (f: string, v: string) => void; options: Array<{ value: string; label: string }> | string[]; placeholder?: string; className?: string; rf: string[]; locked?: boolean; }) {
   const req = rf.includes(field);
   const opts = typeof options[0] === 'string' ? (options as string[]).map((o) => ({ value: o, label: o })) : (options as Array<{ value: string; label: string }>);
-  return (<div className={className ?? ''}><Label className="text-xs text-slate-600 mb-1 block">{label}{req && <span className="text-red-500 ml-0.5">*</span>}{locked && <Lock className="inline h-3 w-3 ml-1 text-slate-400" />}<HelpTip field={field} /></Label><select className={locked ? selectLockedCls : `${selectFieldCls} ${req && !value ? 'border-amber-300' : ''}`} value={value} onChange={(e) => !locked && onChange(field, e.target.value)} disabled={locked} title={locked ? 'Modificar en Cuadro eléctrico' : undefined}><option value="">{placeholder ?? 'Seleccionar...'}</option>{opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>);
+  return (<div className={className ?? ''}><Label className="text-xs text-surface-700 mb-1 block">{label}{req && <span className="text-red-600 ml-0.5">*</span>}{locked && <Lock className="inline h-3 w-3 ml-1 text-surface-400" />}<HelpTip field={field} /></Label><select className={locked ? selectLockedCls : `${selectFieldCls} ${req && !value ? 'border-amber-300' : ''}`} value={value} onChange={(e) => !locked && onChange(field, e.target.value)} disabled={locked} title={locked ? 'Modificar en Cuadro eléctrico' : undefined}><option value="">{placeholder ?? 'Seleccionar...'}</option>{opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>);
 }
 
 function DireccionFields({ prefix, data, onChange, rf }: { prefix: string; data: Record<string, string>; onChange: (f: string, v: string) => void; rf: string[]; }) {
@@ -341,26 +341,26 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
     <div className="space-y-4">
       {/* AVISO CAMPOS BLOQUEADOS */}
       {isCalculated && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 flex items-start gap-2">
+        <div className="rounded-lg border border-blue-500/30 bg-blue-50 p-3 flex items-start gap-2">
           <Lock className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
           <div>
-            <p className="text-sm text-blue-700 font-medium">Instalación calculada</p>
+            <p className="text-sm text-blue-600 font-medium">Instalación calculada</p>
             <p className="text-xs text-blue-600">Los campos marcados con <Lock className="inline h-3 w-3" /> intervienen en los cálculos y solo pueden modificarse desde la pestaña Cuadro eléctrico.</p>
           </div>
         </div>
       )}
 
       {/* BARRA COMPLETITUD */}
-      <div className="rounded-lg border border-slate-200 p-4 bg-white">
+      <div className="rounded-lg border border-surface-200 p-4 bg-white">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             {percent === 100 ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
-            <span className="text-sm font-medium text-slate-900">Completitud CIE: {filled}/{total} campos</span>
+            <span className="text-sm font-medium text-surface-900">Completitud CIE: {filled}/{total} campos</span>
           </div>
-          <span className={`text-sm font-bold ${percent === 100 ? 'text-emerald-600' : percent > 50 ? 'text-amber-600' : 'text-red-500'}`}>{percent}%</span>
+          <span className={`text-sm font-bold ${percent === 100 ? 'text-emerald-600' : percent > 50 ? 'text-amber-600' : 'text-red-600'}`}>{percent}%</span>
         </div>
-        <div className="w-full bg-slate-100 rounded-full h-2"><div className={`h-2 rounded-full transition-all ${percent === 100 ? 'bg-emerald-500' : percent > 50 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${percent}%` }} /></div>
-        {percent < 100 && <p className="text-xs text-slate-500 mt-2">Faltan {total - filled} campos obligatorios para generar el CIE. Los campos con <span className="text-red-500">*</span> son obligatorios.</p>}
+        <div className="w-full bg-surface-100 rounded-full h-2"><div className={`h-2 rounded-full transition-all ${percent === 100 ? 'bg-emerald-500' : percent > 50 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${percent}%` }} /></div>
+        {percent < 100 && <p className="text-xs text-surface-500 mt-2">Faltan {total - filled} campos obligatorios para generar el CIE. Los campos con <span className="text-red-600">*</span> son obligatorios.</p>}
         {sv.filter((s) => !s.ok).map((s) => <p key={s.field} className="text-xs text-amber-600 mt-1">⚠ {s.msg}</p>)}
       </div>
 
@@ -383,11 +383,11 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
         <DireccionFields prefix="titular" data={data} onChange={set} rf={rf} />
         <div className="grid grid-cols-3 gap-3">
           <TextField label="Correo-e" field="titularEmail" value={data.titularEmail??''} onChange={set} placeholder="titular@email.com" rf={rf} />
-          <div><Label className="text-xs text-slate-600 mb-1 block">Teléfono fijo{telTH && <span className="text-red-500 ml-0.5">*</span>}</Label><input className={`${inputCls} ${telTH ? 'border-amber-300' : ''}`} value={data.titularTelefono??''} onChange={(e) => set('titularTelefono', e.target.value)} />{telTH && <p className="text-xs text-amber-500 mt-0.5">Fijo o móvil obligatorio</p>}</div>
-          <div><Label className="text-xs text-slate-600 mb-1 block">Móvil{telTH && <span className="text-red-500 ml-0.5">*</span>}</Label><input className={`${inputCls} ${telTH ? 'border-amber-300' : ''}`} value={data.titularMovil??''} onChange={(e) => set('titularMovil', e.target.value)} /></div>
+          <div><Label className="text-xs text-surface-700 mb-1 block">Teléfono fijo{telTH && <span className="text-red-600 ml-0.5">*</span>}</Label><input className={`${inputCls} ${telTH ? 'border-amber-300' : ''}`} value={data.titularTelefono??''} onChange={(e) => set('titularTelefono', e.target.value)} />{telTH && <p className="text-xs text-amber-500 mt-0.5">Fijo o móvil obligatorio</p>}</div>
+          <div><Label className="text-xs text-surface-700 mb-1 block">Móvil{telTH && <span className="text-red-600 ml-0.5">*</span>}</Label><input className={`${inputCls} ${telTH ? 'border-amber-300' : ''}`} value={data.titularMovil??''} onChange={(e) => set('titularMovil', e.target.value)} /></div>
         </div>
-        <div className="border-t border-slate-100 pt-3 mt-2">
-          <p className="text-xs text-slate-400 mb-2">Representante (si el titular no es persona física)</p>
+        <div className="border-t border-surface-600 pt-3 mt-2">
+          <p className="text-xs text-surface-400 mb-2">Representante (si el titular no es persona física)</p>
           <div className="grid grid-cols-2 gap-3">
             <TextField label="Nombre representante" field="representanteNombre" value={data.representanteNombre??''} onChange={set} rf={rf} />
             <TextField label="NIF representante" field="representanteNif" value={data.representanteNif??''} onChange={set} rf={rf} />
@@ -423,7 +423,7 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
           <TextField label="Grado electrificación" field="gradoElectrificacion" value={data.gradoElectrificacion??''} onChange={set} placeholder="BASICO / ELEVADO" rf={rf} locked={isLocked('gradoElectrificacion')} />
         </div>
         {isModifAmpl && (
-          <div className="grid grid-cols-3 gap-3 border-t border-slate-100 pt-3">
+          <div className="grid grid-cols-3 gap-3 border-t border-surface-600 pt-3">
             <NumberField label="Pot. original" field="potOriginal" value={data.potOriginal??''} onChange={set} suffix="kW" step="0.01" rf={rf} />
             <NumberField label="Pot. ampliación/modif." field="potAmpliacion" value={data.potAmpliacion??''} onChange={set} suffix="kW" step="0.01" rf={rf} />
             <TextField label="Nº registro existente" field="numRegistroExistente" value={data.numRegistroExistente??''} onChange={set} rf={rf} />
@@ -455,14 +455,14 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
 
       {/* 7. LGA + DI */}
       <Section title="L.G.A. y Derivación Individual" num={7} defaultOpen={false}>
-        <p className="text-xs text-slate-500 font-medium mb-1">Línea General de Alimentación</p>
+        <p className="text-xs text-surface-500 font-medium mb-1">Línea General de Alimentación</p>
         <div className="grid grid-cols-4 gap-3">
           <NumberField label="Sección LGA" field="seccionLga" value={data.seccionLga??''} onChange={set} suffix="mm²" rf={rf} locked={isLocked('seccionLga')} />
           <SelectField label="Material LGA" field="materialLga" value={data.materialLga??''} onChange={set} options={MATERIALES} rf={rf} locked={isLocked('materialLga')} />
           <NumberField label="Longitud LGA" field="longitudLga" value={data.longitudLga??''} onChange={set} suffix="m" step="0.1" rf={rf} locked={isLocked('longitudLga')} />
           <SelectField label="Aislamiento LGA" field="aislamientoLga" value={data.aislamientoLga??''} onChange={set} options={AISLAMIENTOS} rf={rf} locked={isLocked('aislamientoLga')} />
         </div>
-        <p className="text-xs text-slate-500 font-medium mb-1 mt-3">Derivación Individual</p>
+        <p className="text-xs text-surface-500 font-medium mb-1 mt-3">Derivación Individual</p>
         <div className="grid grid-cols-3 gap-3">
           <NumberField label="Sección DI" field="seccionDi" value={data.seccionDi??''} onChange={set} suffix="mm²" rf={rf} locked={isLocked('seccionDi')} />
           <SelectField label="Material DI" field="materialDi" value={data.materialDi??''} onChange={set} options={MATERIALES} rf={rf} locked={isLocked('materialDi')} />
@@ -491,7 +491,7 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
           <NumberField label="Diferencial (A)" field="diferencialNominal" value={data.diferencialNominal??''} onChange={set} suffix="A" rf={rf} locked={isLocked('diferencialNominal')} />
           <NumberField label="Sensibilidad" field="diferencialSensibilidad" value={data.diferencialSensibilidad??''} onChange={set} suffix="mA" rf={rf} locked={isLocked('diferencialSensibilidad')} />
         </div>
-        <div className="flex items-center gap-2"><input type="checkbox" checked={data.protSobretensiones??false} onChange={(e) => set('protSobretensiones', e.target.checked)} className="rounded border-slate-300" /><Label className="text-xs text-slate-600">Protección contra sobretensiones</Label></div>
+        <div className="flex items-center gap-2"><input type="checkbox" checked={data.protSobretensiones??false} onChange={(e) => set('protSobretensiones', e.target.checked)} className="rounded border-surface-300" /><Label className="text-xs text-surface-700">Protección contra sobretensiones</Label></div>
       </Section>
 
       {/* 10. PUESTA A TIERRA Y VERIFICACIONES */}
@@ -505,7 +505,7 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
           <NumberField label="Resistencia tierra" field="resistenciaTierra" value={data.resistenciaTierra??''} onChange={set} suffix="Ω" step="0.1" rf={rf} />
           <NumberField label="Resistencia aislamiento" field="resistenciaAislamiento" value={data.resistenciaAislamiento??''} onChange={set} suffix="MΩ" step="0.1" rf={rf} />
         </div>
-        <div><Label className="text-xs text-slate-600 mb-1 block">Otras verificaciones</Label><textarea className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[60px]" value={data.otrasVerificaciones??''} onChange={(e) => set('otrasVerificaciones', e.target.value)} /></div>
+        <div><Label className="text-xs text-surface-700 mb-1 block">Otras verificaciones</Label><textarea className="w-full rounded-md border border-surface-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[60px]" value={data.otrasVerificaciones??''} onChange={(e) => set('otrasVerificaciones', e.target.value)} /></div>
       </Section>
 
       {/* 11. EMPRESA INSTALADORA */}
@@ -525,8 +525,8 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
         </div>
         <DireccionFields prefix="empresa" data={data} onChange={set} rf={rf} />
         <div className="grid grid-cols-3 gap-3">
-          <div><Label className="text-xs text-slate-600 mb-1 block">Teléfono{telEH && <span className="text-red-500 ml-0.5">*</span>}</Label><input className={`${inputCls} ${telEH ? 'border-amber-300' : ''}`} value={data.empresaTelefono??''} onChange={(e) => set('empresaTelefono', e.target.value)} />{telEH && <p className="text-xs text-amber-500 mt-0.5">Fijo o móvil obligatorio</p>}</div>
-          <div><Label className="text-xs text-slate-600 mb-1 block">Móvil{telEH && <span className="text-red-500 ml-0.5">*</span>}</Label><input className={`${inputCls} ${telEH ? 'border-amber-300' : ''}`} value={data.empresaMovil??''} onChange={(e) => set('empresaMovil', e.target.value)} /></div>
+          <div><Label className="text-xs text-surface-700 mb-1 block">Teléfono{telEH && <span className="text-red-600 ml-0.5">*</span>}</Label><input className={`${inputCls} ${telEH ? 'border-amber-300' : ''}`} value={data.empresaTelefono??''} onChange={(e) => set('empresaTelefono', e.target.value)} />{telEH && <p className="text-xs text-amber-500 mt-0.5">Fijo o móvil obligatorio</p>}</div>
+          <div><Label className="text-xs text-surface-700 mb-1 block">Móvil{telEH && <span className="text-red-600 ml-0.5">*</span>}</Label><input className={`${inputCls} ${telEH ? 'border-amber-300' : ''}`} value={data.empresaMovil??''} onChange={(e) => set('empresaMovil', e.target.value)} /></div>
           <TextField label="Correo-e" field="empresaEmail" value={data.empresaEmail??''} onChange={set} rf={rf} />
         </div>
       </Section>
@@ -539,10 +539,10 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
       {/* 13. CERTIFICACIÓN (CIE) */}
       <Section title="Certificación (CIE)" num={13} defaultOpen={false}>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2"><input type="checkbox" checked={data.aplicaReeae??false} onChange={(e) => set('aplicaReeae', e.target.checked)} className="rounded border-slate-300" /><Label className="text-xs text-slate-600">Aplica RD 1890/2008 (REEAE — Alumbrado)</Label></div>
+          <div className="flex items-center gap-2"><input type="checkbox" checked={data.aplicaReeae??false} onChange={(e) => set('aplicaReeae', e.target.checked)} className="rounded border-surface-300" /><Label className="text-xs text-surface-700">Aplica RD 1890/2008 (REEAE — Alumbrado)</Label></div>
           {data.aplicaReeae && <NumberField label="Pot. luminarias" field="potLuminariasReeae" value={data.potLuminariasReeae??''} onChange={set} suffix="kW" step="0.01" className="w-40" rf={rf} />}
         </div>
-        <div className="flex items-center gap-2"><input type="checkbox" checked={data.aplicaItcBt51??false} onChange={(e) => set('aplicaItcBt51', e.target.checked)} className="rounded border-slate-300" /><Label className="text-xs text-slate-600">Aplica ITC-BT-51 (Domótica)</Label></div>
+        <div className="flex items-center gap-2"><input type="checkbox" checked={data.aplicaItcBt51??false} onChange={(e) => set('aplicaItcBt51', e.target.checked)} className="rounded border-surface-300" /><Label className="text-xs text-surface-700">Aplica ITC-BT-51 (Domótica)</Label></div>
       </Section>
 
       {/* 14. PRESUPUESTO */}
@@ -556,18 +556,18 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
 
       {/* 15. INFO ADICIONAL + MEMORIA */}
       <Section title="Información Adicional y Memoria" num={15} defaultOpen={false}>
-        <div><Label className="text-xs text-slate-600 mb-1 block">Descripción de los trabajos (CIE)</Label><textarea className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[80px]" value={data.infoAdicional??''} onChange={(e) => set('infoAdicional', e.target.value)} /></div>
-        <div><Label className="text-xs text-slate-600 mb-1 block">Memoria descriptiva (MTD pág. 6)</Label><textarea className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[120px]" value={data.memoriaDescriptiva??''} onChange={(e) => set('memoriaDescriptiva', e.target.value)} placeholder="Descripción detallada de la instalación..." /></div>
+        <div><Label className="text-xs text-surface-700 mb-1 block">Descripción de los trabajos (CIE)</Label><textarea className="w-full rounded-md border border-surface-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[80px]" value={data.infoAdicional??''} onChange={(e) => set('infoAdicional', e.target.value)} /></div>
+        <div><Label className="text-xs text-surface-700 mb-1 block">Memoria descriptiva (MTD pág. 6)</Label><textarea className="w-full rounded-md border border-surface-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[120px]" value={data.memoriaDescriptiva??''} onChange={(e) => set('memoriaDescriptiva', e.target.value)} placeholder="Descripción detallada de la instalación..." /></div>
         <TextField label="Lugar de firma" field="firmaLugar" value={data.firmaLugar??''} onChange={set} placeholder="MADRID" className="w-48" rf={rf} />
       </Section>
 
       {/* GUARDAR */}
-      <div className="flex items-center gap-3 border-t border-slate-200 pt-5">
+      <div className="flex items-center gap-3 border-t border-surface-200 pt-5">
         <Button type="button" onClick={handleSave} disabled={isSaving || !dirty}>
           {isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando…</> : saved ? <><CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />Guardado</> : <><Save className="mr-2 h-4 w-4" />Guardar datos</>}
         </Button>
         {dirty && <span className="text-xs text-amber-600">Cambios sin guardar</span>}
-        {!dirty && !saved && <span className="text-xs text-slate-400">Sin cambios</span>}
+        {!dirty && !saved && <span className="text-xs text-surface-400">Sin cambios</span>}
       </div>
     </div>
   );

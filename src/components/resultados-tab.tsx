@@ -120,10 +120,10 @@ export function ResultadosTab({
   if (!calculation) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-4">
-        <Calculator className="h-10 w-10 text-slate-300" />
+        <Calculator className="h-10 w-10 text-surface-400" />
         <div className="text-center">
-          <p className="text-sm font-medium text-slate-700">Sin resultados</p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-sm font-medium text-surface-700">Sin resultados</p>
+          <p className="text-xs text-surface-400 mt-1">
             Configura los circuitos en "Cuadro eléctrico" y pulsa "Calcular instalación".
           </p>
         </div>
@@ -201,8 +201,8 @@ export function ResultadosTab({
         className={cn(
           'rounded-lg border px-4 py-3 flex items-start gap-3',
           calculation.allCompliant
-            ? 'border-emerald-200 bg-emerald-50'
-            : 'border-red-200 bg-red-50',
+            ? 'border-emerald-500/30 bg-emerald-50'
+            : 'border-red-500/30 bg-red-50',
         )}
       >
         {calculation.allCompliant ? (
@@ -211,7 +211,7 @@ export function ResultadosTab({
           <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
         )}
         <div>
-          <p className={cn('text-sm font-semibold', calculation.allCompliant ? 'text-emerald-800' : 'text-red-800')}>
+          <p className={cn('text-sm font-semibold', calculation.allCompliant ? 'text-emerald-300' : 'text-red-300')}>
             {calculation.allCompliant
               ? 'Todos los circuitos cumplen con el REBT'
               : 'Algunos circuitos NO cumplen con el REBT'}
@@ -239,22 +239,22 @@ export function ResultadosTab({
 
       {/* ── Tabla de circuitos ── */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-surface-50 mb-3 flex items-center gap-2">
           <Cable className="h-4 w-4" />
           Resultados por circuito
         </h3>
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
+        <div className="overflow-x-auto rounded-lg border border-surface-200">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 w-[50px]">#</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Circuito</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-500">Potencia</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-500">Sección</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-500">CdT (%)</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">PIA</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Diferencial</th>
-                <th className="px-3 py-2 text-center text-xs font-medium text-slate-500 w-[60px]">Cumple</th>
+              <tr className="bg-surface-50 border-b border-surface-200">
+                <th className="px-3 py-2 text-left text-xs font-medium text-surface-500 w-[50px]">#</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-surface-500">Circuito</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-surface-500">Potencia</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-surface-500">Sección</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-surface-500">CdT (%)</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-surface-500">PIA</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-surface-500">Diferencial</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-surface-500 w-[60px]">Cumple</th>
                 <th className="px-3 py-2 w-[40px]"></th>
               </tr>
             </thead>
@@ -271,13 +271,13 @@ export function ResultadosTab({
 
       {/* ── Footer ── */}
       {documentCount > 0 && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 flex items-center gap-2 text-xs text-amber-700">
+        <div className="rounded-md border border-amber-500/30 bg-amber-50 px-3 py-2 flex items-center gap-2 text-xs text-amber-600">
           <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
           <span>Hay {documentCount} documento{documentCount !== 1 ? 's' : ''} emitido{documentCount !== 1 ? 's' : ''}. Recalcular puede afectar la coherencia. Los nuevos documentos se generarán como nueva versión.</span>
         </div>
       )}
       <div className="flex items-center justify-between pt-2">
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-surface-400">
           Motor v{calculation.engineVersion} · Norma: {calculation.normVersion} · Cálculo v{calculation.version}
         </p>
         <Button variant="outline" size="sm" onClick={onRecalculate} disabled={isCalculating}>
@@ -301,12 +301,12 @@ function StatCard({ icon: Icon, label, value, color }: {
   color: string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
+    <div className="rounded-lg border border-surface-200 bg-white p-4">
       <div className="flex items-center gap-3">
         <Icon className={cn('h-5 w-5', color)} />
         <div>
-          <p className="text-xs text-slate-500">{label}</p>
-          <p className="text-lg font-bold text-slate-800">{value}</p>
+          <p className="text-xs text-surface-500">{label}</p>
+          <p className="text-lg font-bold text-surface-50">{value}</p>
         </div>
       </div>
     </div>
@@ -338,18 +338,18 @@ function CircuitRow({ circuit }: { circuit: MergedCircuit }) {
     <>
       <tr
         className={cn(
-          'border-b border-slate-100 transition-colors',
-          circuit.isCompliant === false && 'bg-red-50/50',
-          hasSteps && 'cursor-pointer hover:bg-slate-50',
+          'border-b border-surface-200 transition-colors',
+          circuit.isCompliant === false && 'bg-red-500/5',
+          hasSteps && 'cursor-pointer hover:bg-surface-50',
         )}
         onClick={() => hasSteps && setExpanded(!expanded)}
       >
-        <td className="px-3 py-2.5 font-mono text-xs text-slate-400">
+        <td className="px-3 py-2.5 font-mono text-xs text-surface-400">
           {circuit.code || `#${circuit.order}`}
         </td>
-        <td className="px-3 py-2.5 font-medium text-slate-700">{circuit.name}</td>
+        <td className="px-3 py-2.5 font-medium text-surface-700">{circuit.name}</td>
         <td className="px-3 py-2.5 text-right font-mono text-xs">{formatPower(circuit.power)}</td>
-        <td className="px-3 py-2.5 text-right font-mono text-xs font-semibold text-slate-800">
+        <td className="px-3 py-2.5 text-right font-mono text-xs font-semibold text-surface-50">
           {formatSection(circuit.sectionMm2)}
         </td>
         <td className={cn(
@@ -359,20 +359,20 @@ function CircuitRow({ circuit }: { circuit: MergedCircuit }) {
         )}>
           {formatVoltageDrop(circuit.voltageDropPct)}
         </td>
-        <td className="px-3 py-2.5 text-xs text-slate-600">{piaLabel}</td>
-        <td className="px-3 py-2.5 text-xs text-slate-600">{rcdLabel}</td>
+        <td className="px-3 py-2.5 text-xs text-surface-700">{piaLabel}</td>
+        <td className="px-3 py-2.5 text-xs text-surface-700">{rcdLabel}</td>
         <td className="px-3 py-2.5 text-center">
           {circuit.isCompliant === true ? (
             <CheckCircle2 className="h-4 w-4 text-emerald-500 mx-auto" />
           ) : circuit.isCompliant === false ? (
             <XCircle className="h-4 w-4 text-red-500 mx-auto" />
           ) : (
-            <span className="text-slate-300">—</span>
+            <span className="text-surface-400">—</span>
           )}
         </td>
         <td className="px-3 py-2.5">
           {hasSteps && (
-            <button className="text-slate-400 hover:text-slate-600" onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}>
+            <button className="text-surface-400 hover:text-surface-700" onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}>
               {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
           )}
@@ -383,32 +383,32 @@ function CircuitRow({ circuit }: { circuit: MergedCircuit }) {
       {expanded && hasSteps && (
         <tr>
           <td colSpan={9} className="p-0">
-            <div className="bg-slate-50 border-t border-slate-200 px-6 py-4">
+            <div className="bg-surface-50 border-t border-surface-200 px-6 py-4">
               <div className="flex items-center gap-2 mb-3">
                 <Info className="h-4 w-4 text-blue-600" />
-                <p className="text-xs font-semibold text-slate-700">
+                <p className="text-xs font-semibold text-surface-700">
                   Justificación técnica — {circuit.code || circuit.name}
                 </p>
               </div>
               <div className="space-y-3">
                 {circuit.justificationSteps.map((step, idx) => (
                   <div key={idx} className="flex gap-3">
-                    <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-blue-100 text-blue-700">
+                    <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-blue-50 text-blue-600">
                       {idx + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-slate-700">{step.title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{step.description}</p>
+                      <p className="text-xs font-medium text-surface-700">{step.title}</p>
+                      <p className="text-xs text-surface-500 mt-0.5">{step.description}</p>
                       {step.formula && (
-                        <code className="block mt-1 text-[11px] bg-white rounded px-2 py-1 font-mono border border-slate-200 text-slate-600">
+                        <code className="block mt-1 text-[11px] bg-white rounded px-2 py-1 font-mono border border-surface-200 text-surface-700">
                           {step.formula}
                         </code>
                       )}
                       {step.result && (
-                        <p className="mt-1 text-xs font-semibold text-slate-800">→ {step.result}</p>
+                        <p className="mt-1 text-xs font-semibold text-surface-50">→ {step.result}</p>
                       )}
                       {step.reference && (
-                        <span className="inline-block mt-1 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] text-slate-500">
+                        <span className="inline-block mt-1 rounded border border-surface-200 bg-white px-1.5 py-0.5 text-[10px] text-surface-500">
                           {step.reference}
                         </span>
                       )}

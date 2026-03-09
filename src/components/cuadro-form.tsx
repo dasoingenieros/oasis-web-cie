@@ -340,9 +340,9 @@ export function CuadroForm({
     ?? totalPowerW;
 
   // Clase base para selects compactos
-  const selectCls = "h-7 w-full rounded border border-slate-300 bg-white px-1 text-xs";
+  const selectCls = "h-7 w-full rounded border border-surface-300 bg-white px-1 text-xs";
   // Clase para inputs de texto sin flechas
-  const inputCls = "no-spinner h-7 rounded border border-slate-300 bg-white px-1.5 text-xs tabular-nums focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400";
+  const inputCls = "no-spinner h-7 rounded border border-surface-300 bg-white px-1.5 text-xs tabular-nums focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400";
 
   return (
     <div className="space-y-4">
@@ -352,9 +352,9 @@ export function CuadroForm({
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-surface-500">
             {rows.length} circuito{rows.length !== 1 ? 's' : ''} · P. máx. admisible:{' '}
-            <span className="font-medium text-slate-700">
+            <span className="font-medium text-surface-700">
               {(maxPowerW / 1000).toFixed(2)} kW
             </span>
           </p>
@@ -375,10 +375,10 @@ export function CuadroForm({
 
       {/* Table */}
       {rows.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 py-12 text-center">
-          <AlertTriangle className="h-8 w-8 text-slate-300" />
-          <p className="mt-3 text-sm font-medium text-slate-700">Sin circuitos definidos</p>
-          <p className="mt-1 text-xs text-slate-500 max-w-xs">
+        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-surface-200 py-12 text-center">
+          <AlertTriangle className="h-8 w-8 text-surface-400" />
+          <p className="mt-3 text-sm font-medium text-surface-700">Sin circuitos definidos</p>
+          <p className="mt-1 text-xs text-surface-500 max-w-xs">
             {supplyType && supplyType !== 'LOCAL_COMERCIAL'
               ? 'Pulsa "Cargar circuitos ITC-BT-25" para rellenar automáticamente, o añade circuitos manualmente.'
               : 'Añade los circuitos de la instalación manualmente.'}
@@ -397,26 +397,26 @@ export function CuadroForm({
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
+        <div className="overflow-x-auto rounded-lg border border-surface-200">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px]">
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-7">#</th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-12">Cód.</th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 min-w-[60px]">Circuito</th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-16 text-right">P.Cálc.<br/><span className="font-normal text-slate-400">kW</span></th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-[70px] text-center">V</th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-14 text-center">I.Cálc.<br/><span className="font-normal text-slate-400">A</span></th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-20 text-center">Cond.×S</th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-14 text-center">Mat</th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-20 text-center">Aisl.</th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-16 text-center">Inst.</th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-14">Long.<br/><span className="font-normal text-slate-400">m</span></th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-14 text-right">CdT<br/><span className="font-normal text-slate-400">V</span></th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-16 text-right">P.Adm.<br/><span className="font-normal text-slate-400">kW</span></th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-14">P.Inst.<br/><span className="font-normal text-slate-400">kW</span></th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-12 text-center">PIA<br/><span className="font-normal text-slate-400">A</span></th>
-                <th className="px-1.5 py-2 font-medium text-slate-600 w-10 text-center">Man.</th>
+              <tr className="border-b border-surface-200 bg-surface-50 text-left text-[11px]">
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-7">#</th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-12">Cód.</th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 min-w-[60px]">Circuito</th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-16 text-right">P.Cálc.<br/><span className="font-normal text-surface-400">kW</span></th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-[70px] text-center">V</th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-14 text-center">I.Cálc.<br/><span className="font-normal text-surface-400">A</span></th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-20 text-center">Cond.×S</th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-14 text-center">Mat</th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-20 text-center">Aisl.</th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-16 text-center">Inst.</th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-14">Long.<br/><span className="font-normal text-surface-400">m</span></th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-14 text-right">CdT<br/><span className="font-normal text-surface-400">V</span></th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-16 text-right">P.Adm.<br/><span className="font-normal text-surface-400">kW</span></th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-14">P.Inst.<br/><span className="font-normal text-surface-400">kW</span></th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-12 text-center">PIA<br/><span className="font-normal text-surface-400">A</span></th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-10 text-center">Man.</th>
                 <th className="px-1.5 py-2 w-7" />
               </tr>
             </thead>
@@ -433,10 +433,10 @@ export function CuadroForm({
                 return (
                   <React.Fragment key={row.key}>
                   <tr
-                    className={`border-b border-slate-100 transition-colors hover:bg-slate-50/50${row.maniobraChain.length > 0 ? ' bg-blue-50/30' : ''}`}
+                    className={`border-b border-surface-600 transition-colors hover:bg-surface-50/50${row.maniobraChain.length > 0 ? ' bg-blue-500/5' : ''}`}
                   >
                     {/* # */}
-                    <td className="px-1.5 py-1 text-slate-400 tabular-nums text-xs">
+                    <td className="px-1.5 py-1 text-surface-400 tabular-nums text-xs">
                       {row.order}
                     </td>
                     {/* Código */}
@@ -459,7 +459,7 @@ export function CuadroForm({
                     </td>
                     {/* P. Cálculo (kW) — auto = V × I */}
                     <td className="px-1.5 py-1 text-right">
-                      <span className="text-xs tabular-nums text-slate-500">{pCalcKw}</span>
+                      <span className="text-xs tabular-nums text-surface-500">{pCalcKw}</span>
                     </td>
                     {/* Tensión (V) */}
                     <td className="px-1.5 py-1 text-center">
@@ -491,7 +491,7 @@ export function CuadroForm({
                     </td>
                     {/* Conductores × Sección — auto-calculado */}
                     <td className="px-1.5 py-1 text-center">
-                      <span className="text-xs tabular-nums text-slate-500">{conductors}</span>
+                      <span className="text-xs tabular-nums text-surface-500">{conductors}</span>
                     </td>
                     {/* Material */}
                     <td className="px-1.5 py-1 text-center">
@@ -547,13 +547,13 @@ export function CuadroForm({
                     </td>
                     {/* CdT (V) — resultado */}
                     <td className="px-1.5 py-1 text-right">
-                      <span className="text-xs tabular-nums text-slate-400">
+                      <span className="text-xs tabular-nums text-surface-400">
                         {row.resultCdtV != null ? row.resultCdtV.toFixed(2) : '—'}
                       </span>
                     </td>
                     {/* P. Máx. Admisible (kW) — resultado */}
                     <td className="px-1.5 py-1 text-right">
-                      <span className="text-xs tabular-nums text-slate-400">
+                      <span className="text-xs tabular-nums text-surface-400">
                         {row.resultPmaxKw != null ? row.resultPmaxKw.toFixed(2) : pCalcKw}
                       </span>
                     </td>
@@ -569,7 +569,7 @@ export function CuadroForm({
                     </td>
                     {/* PIA (A) — auto-calculado según I.Cálc */}
                     <td className="px-1.5 py-1 text-center">
-                      <span className="text-xs tabular-nums font-medium text-slate-600">
+                      <span className="text-xs tabular-nums font-medium text-surface-700">
                         {displayPia}
                       </span>
                     </td>
@@ -578,7 +578,7 @@ export function CuadroForm({
                       {row.maniobraChain.length > 0 ? (
                         <button
                           onClick={() => toggleManiobra(row.key)}
-                          className="rounded px-1 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                          className="rounded px-1 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-600 hover:bg-blue-500/20 transition-colors"
                           title={row.maniobraChain.map((d) => MANIOBRA_DEVICE_TYPES.find((m) => m.value === d.type)?.short ?? d.type).join('→')}
                         >
                           {row.maniobraChain.length > 1
@@ -588,7 +588,7 @@ export function CuadroForm({
                       ) : (
                         <button
                           onClick={() => toggleManiobra(row.key)}
-                          className="rounded p-0.5 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500"
+                          className="rounded p-0.5 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-500"
                           title="Añadir maniobra"
                         >
                           <Settings2 className="h-3 w-3" />
@@ -599,7 +599,7 @@ export function CuadroForm({
                     <td className="px-1.5 py-1">
                       <button
                         onClick={() => removeRow(row.key)}
-                        className="rounded p-0.5 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
+                        className="rounded p-0.5 text-surface-400 transition-colors hover:bg-red-50 hover:text-red-600"
                         title="Eliminar"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -608,28 +608,28 @@ export function CuadroForm({
                   </tr>
                   {/* Sub-fila maniobra expandible — cadena de dispositivos */}
                   {expandedManiobra.has(row.key) && (
-                    <tr className="bg-blue-50/50 border-b border-slate-100">
+                    <tr className="bg-blue-500/5 border-b border-surface-600">
                       <td colSpan={16} className="px-3 py-2">
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2 text-xs">
-                            <span className="font-medium text-slate-500">Cadena maniobra:</span>
-                            <span className="text-slate-400">PIA {displayPia}A →</span>
+                            <span className="font-medium text-surface-500">Cadena maniobra:</span>
+                            <span className="text-surface-400">PIA {displayPia}A →</span>
                             {row.maniobraChain.map((dev, idx) => {
                               const devType = MANIOBRA_DEVICE_TYPES.find((m) => m.value === dev.type);
                               return (
                                 <span key={idx} className="flex items-center gap-1">
-                                  <span className="bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 font-medium">{devType?.short ?? dev.type}</span>
-                                  {devType?.hasCalibre && <span className="text-slate-500">{dev.calibreA ?? '—'}A</span>}
-                                  <span className="text-slate-300">→</span>
+                                  <span className="bg-blue-500/15 text-blue-600 rounded px-1.5 py-0.5 font-medium">{devType?.short ?? dev.type}</span>
+                                  {devType?.hasCalibre && <span className="text-surface-500">{dev.calibreA ?? '—'}A</span>}
+                                  <span className="text-surface-400">→</span>
                                 </span>
                               );
                             })}
-                            <span className="text-slate-400 text-[10px]">Receptor</span>
+                            <span className="text-surface-400 text-[10px]">Receptor</span>
                           </div>
                           {/* Dispositivos editables */}
                           {row.maniobraChain.map((dev, idx) => (
                             <div key={idx} className="flex items-center gap-2 pl-4 text-xs">
-                              <span className="text-slate-400 w-4">{idx + 1}.</span>
+                              <span className="text-surface-400 w-4">{idx + 1}.</span>
                               <select
                                 value={dev.type}
                                 onChange={(e) => {
@@ -668,7 +668,7 @@ export function CuadroForm({
                                   setRows((prev) => prev.map((r) => r.key === row.key ? { ...r, maniobraChain: newChain } : r));
                                   setDirty(true);
                                 }}
-                                className="rounded p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                                className="rounded p-0.5 text-surface-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                                 title="Quitar dispositivo"
                               >
                                 <X className="h-3 w-3" />
@@ -685,14 +685,14 @@ export function CuadroForm({
                                 setRows((prev) => prev.map((r) => r.key === row.key ? { ...r, maniobraChain: newChain } : r));
                                 setDirty(true);
                               }}
-                              className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] text-blue-500 hover:bg-blue-50 border border-blue-200 transition-colors"
+                              className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] text-blue-500 hover:bg-blue-50 border border-blue-500/30 transition-colors"
                             >
                               <Plus className="h-2.5 w-2.5" /> Añadir dispositivo
                             </button>
                             {row.maniobraChain.length > 0 && (
                               <button
                                 onClick={() => removeManiobra(row.key)}
-                                className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] text-red-400 hover:bg-red-50 border border-red-200 transition-colors"
+                                className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] text-red-600 hover:bg-red-50 border border-red-500/30 transition-colors"
                               >
                                 <X className="h-2.5 w-2.5" /> Limpiar todo
                               </button>
@@ -712,7 +712,7 @@ export function CuadroForm({
 
       {/* Action buttons */}
       {rows.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-5">
+        <div className="flex flex-wrap items-center gap-3 border-t border-surface-200 pt-5">
           <Button onClick={handleSave} disabled={isSaving || !dirty} variant="outline">
             {isSaving ? (
               <>

@@ -50,10 +50,11 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
       try {
-        const { data } = await axios.post<AuthResponse>(`${API_BASE}/api/v1/auth/refresh`, {}, { withCredentials: true });
-        setAccessToken(data.accessToken);
-        processQueue(null, data.accessToken);
-        if (originalRequest.headers) originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        const { data: refreshBody } = await axios.post(`${API_BASE}/api/v1/auth/refresh`, {}, { withCredentials: true });
+        const refreshed = unwrap<{ accessToken: string }>(refreshBody);
+        setAccessToken(refreshed.accessToken);
+        processQueue(null, refreshed.accessToken);
+        if (originalRequest.headers) originalRequest.headers.Authorization = `Bearer ${refreshed.accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
@@ -66,12 +67,38 @@ api.interceptors.response.use(
   },
 );
 
+// Helper: unwrap API responses that use { success, data } envelope
+function unwrap<T>(body: any): T {
+  return body && body.success !== undefined && body.data !== undefined ? body.data : body;
+}
+
 export const authApi = {
-  async login(dto: LoginDto): Promise<AuthResponse> { const { data } = await api.post<AuthResponse>('/auth/login', dto); setAccessToken(data.accessToken); return data; },
-  async register(dto: RegisterDto): Promise<AuthResponse> { const { data } = await api.post<AuthResponse>('/auth/register', dto); setAccessToken(data.accessToken); return data; },
-  async refresh(): Promise<AuthResponse> { const { data } = await api.post<AuthResponse>('/auth/refresh'); setAccessToken(data.accessToken); return data; },
+  async login(dto: LoginDto): Promise<AuthResponse> {
+    const { data: body } = await api.post('/auth/login', dto);
+    const { accessToken } = unwrap<{ accessToken: string }>(body);
+    setAccessToken(accessToken);
+    const user = await authApi.me();
+    return { accessToken, user };
+  },
+  async register(dto: RegisterDto): Promise<AuthResponse> {
+    const { data: body } = await api.post('/auth/register', dto);
+    const { accessToken } = unwrap<{ accessToken: string }>(body);
+    setAccessToken(accessToken);
+    const user = await authApi.me();
+    return { accessToken, user };
+  },
+  async refresh(): Promise<AuthResponse> {
+    const { data: body } = await api.post('/auth/refresh');
+    const { accessToken } = unwrap<{ accessToken: string }>(body);
+    setAccessToken(accessToken);
+    const user = await authApi.me();
+    return { accessToken, user };
+  },
   async logout(): Promise<void> { try { await api.post('/auth/logout'); } finally { setAccessToken(null); } },
-  async me(): Promise<AuthResponse['user']> { const { data } = await api.get<AuthResponse['user']>('/auth/me'); return data; },
+  async me(): Promise<AuthResponse['user']> {
+    const { data: body } = await api.get('/auth/me');
+    return unwrap<AuthResponse['user']>(body);
+  },
 };
 
 export const installationsApi = {
