@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Zap,
   Cable,
+  Info,
 } from 'lucide-react';
 
 // ─── Constantes ──────────────────────────────────────────────
@@ -357,7 +358,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
       <div className="rounded-lg border border-amber-500/30 bg-amber-50 p-4">
         <div className="flex items-center gap-2 mb-3">
           <Cable className="h-4 w-4 text-amber-600" />
-          <h3 className="text-sm font-semibold text-amber-300">Derivación Individual (DI)</h3>
+          <h3 className="text-sm font-semibold text-amber-800">Derivación Individual (DI)</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {/* Sección */}
@@ -425,7 +426,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
       <div className="rounded-lg border border-blue-500/30 bg-blue-50 p-4">
         <div className="flex items-center gap-2 mb-3">
           <Zap className="h-4 w-4 text-blue-600" />
-          <h3 className="text-sm font-semibold text-blue-300">Interruptor General Automático (IGA)</h3>
+          <h3 className="text-sm font-semibold text-blue-800">Interruptor General Automático (IGA)</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {/* Calibre IGA */}
@@ -442,7 +443,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
           {/* P. Máx. Admisible */}
           <div>
             <label className="text-[11px] text-surface-500 block mb-1">P. Máx. Adm.</label>
-            <div className="h-7 flex items-center text-xs font-medium text-blue-300 bg-blue-500/15 rounded px-2">
+            <div className="h-7 flex items-center text-xs font-medium text-blue-700 bg-blue-500/15 rounded px-2">
               {maxPowerKw} kW
             </div>
           </div>
@@ -516,9 +517,19 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
         </div>
 
         {diffs.length === 0 ? (
-          <div className="rounded-lg border-2 border-dashed border-surface-200 py-8 text-center">
-            <p className="text-sm text-surface-500">Sin diferenciales definidos.</p>
-            <p className="text-xs text-surface-400 mt-1">Carga la plantilla o añade diferenciales manualmente.</p>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-3 text-sm text-blue-700 flex items-center gap-2">
+              <span className="text-blue-500 flex-shrink-0 text-base">&#9432;</span>
+              <span>Recomendado: define primero los circuitos y despues configura los diferenciales para asignarlos facilmente.</span>
+            </div>
+            <div className="rounded-lg border-2 border-dashed border-surface-200 py-8 text-center">
+              <p className="text-sm text-surface-500">Sin diferenciales definidos.</p>
+              <p className="text-xs text-surface-400 mt-1">Carga la plantilla o añade diferenciales manualmente.</p>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+              Añade al menos un diferencial y asigna circuitos antes de calcular.
+            </div>
           </div>
         ) : (
           diffs.map((diff, idx) => {
@@ -585,7 +596,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
 
                   {/* Protección */}
                   {diff.isProtected === true && (
-                    <span className="flex items-center gap-1 text-[11px] text-green-400 bg-green-500/15 rounded px-2 py-0.5">
+                    <span className="flex items-center gap-1 text-[11px] text-green-700 bg-green-500/15 rounded px-2 py-0.5">
                       <ShieldCheck className="h-3 w-3" /> Protegido
                     </span>
                   )}
@@ -624,7 +635,7 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
                             disabled={isOther}
                             className={`rounded px-2 py-1 text-[11px] transition-colors ${
                               isAssigned
-                                ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                                ? 'bg-blue-500/15 text-blue-700 border border-blue-500/30'
                                 : isOther
                                 ? 'bg-surface-50 text-surface-400 border border-surface-600 cursor-not-allowed'
                                 : 'bg-surface-50 text-surface-700 border border-surface-200 hover:bg-blue-50 hover:border-blue-500/30'

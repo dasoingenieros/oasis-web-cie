@@ -5,6 +5,7 @@ import type {
   AuthResponse, Installation, CreateInstallationDto, UpdateInstallationDto,
   Circuit, CreateCircuitDto, CalculationResult, LoginDto, RegisterDto,
   Document, ElectricalPanel, SavePanelWithDifferentialsDto, UsageData,
+  WaitlistDto,
 } from './types';
 
 let accessToken: string | null = null;
@@ -148,6 +149,20 @@ export const onboardingApi = {
 
 export const subscriptionsApi = {
   async getUsage(): Promise<UsageData> { const { data } = await api.get<UsageData>('/subscriptions/usage'); return data; },
+};
+
+export const consentApi = {
+  async log(dto: { consentType: string; documentVersion: string; accepted: boolean; method?: string; certificateId?: string }): Promise<void> {
+    await api.post('/consent', dto);
+  },
+  async logBulk(consents: Array<{ consentType: string; documentVersion: string; accepted: boolean; method?: string }>): Promise<void> {
+    await api.post('/consent/bulk', { consents });
+  },
+  async list(): Promise<any[]> { const { data } = await api.get('/consent'); return data; },
+};
+
+export const waitlistApi = {
+  async submit(dto: WaitlistDto): Promise<void> { await api.post('/waitlist', dto); },
 };
 
 export const tenantApi = {

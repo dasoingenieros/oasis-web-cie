@@ -17,6 +17,8 @@ import {
   X,
   ArrowUpRight,
 } from 'lucide-react';
+import { LegalFooter } from '@/components/legal/legal-footer';
+import { CookieBanner } from '@/components/legal/cookie-banner';
 
 const nav = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -59,7 +61,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  const isFreePlan = usage && usage.plan === 'free';
+  const isFreePlan = usage?.isLimited;
 
   return (
     <div className="min-h-screen bg-surface-50 flex">
@@ -168,7 +170,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page content */}
         <main className="flex-1 p-4 lg:p-6">{children}</main>
+
+        <LegalFooter />
       </div>
+
+      <CookieBanner />
     </div>
   );
 }

@@ -13,6 +13,9 @@ import {
 } from 'lucide-react';
 import { UnifilarEditor } from '@/components/unifilar/unifilar-editor';
 import { UpgradeModal } from '@/components/upgrade-modal';
+import { CertificateConfirmationModal } from '@/components/legal/certificate-confirmation-modal';
+import { consentApi } from '@/lib/api-client';
+import { LEGAL_VERSIONS } from '@/lib/legal-versions';
 
 interface DocumentosTabProps {
   installationId: string;
@@ -33,10 +36,15 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
   const [showUnifilar, setShowUnifilar] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  /** Check if error is a CIE limit error and show upgrade modal */
-  const isCieLimitError = (err: any): boolean => {
+  // ── Legal: responsibility checkbox + confirmation modal ──
+  const [acceptedResponsibility, setAcceptedResponsibility] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => Promise<void>) | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
+  /** Check if error is a cert limit error and show upgrade modal */
+  const isCertLimitError = (err: any): boolean => {
     const data = err?.response?.data;
-    if (data?.code === 'CIE_LIMIT_REACHED' || (err?.response?.status === 403 && typeof data?.message === 'string' && data.message.toLowerCase().includes('límite'))) {
+    if (data?.code === 'CERT_LIMIT_REACHED' || data?.code === 'CIE_LIMIT_REACHED' || (err?.response?.status === 403 && typeof data?.message === 'string' && data.message.toLowerCase().includes('límite'))) {
       setShowUpgrade(true);
       return true;
     }
@@ -58,7 +66,7 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
   const handleGenerate = async (type: 'MEMORIA_TECNICA' | 'UNIFILAR') => {
     setGenerating(type); setError(null);
     try { const doc = await documentsApi.generate(installationId, type); setDocuments((prev) => [doc, ...prev]); }
-    catch (err: any) { if (!isCieLimitError(err)) setError(err?.response?.data?.message || 'Error al generar el documento'); }
+    catch (err: any) { if (!isCertLimitError(err)) setError(err?.response?.data?.message || 'Error al generar el documento'); }
     finally { setGenerating(null); }
   };
 
@@ -73,7 +81,7 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       await fetchDocuments();
-    } catch (err: any) { if (!isCieLimitError(err)) setError(err?.response?.data?.message || 'Error al generar el CIE'); }
+    } catch (err: any) { if (!isCertLimitError(err)) setError(err?.response?.data?.message || 'Error al generar el CIE'); }
     finally { setGenerating(null); }
   };
 
@@ -88,8 +96,44 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       await fetchDocuments();
-    } catch (err: any) { if (!isCieLimitError(err)) setError(err?.response?.data?.message || 'Error al generar la Solicitud BT'); }
+    } catch (err: any) { if (!isCertLimitError(err)) setError(err?.response?.data?.message || 'Error al generar la Solicitud BT'); }
     finally { setGenerating(null); }
+  };
+
+  /** Wrap CIE/Solicitud generation with confirmation modal */
+  const requestCieGeneration = (format: 'xls' | 'pdf') => {
+    if (!acceptedResponsibility) {
+      setError('Debes aceptar la declaración de responsabilidad antes de generar documentos oficiales.');
+      return;
+    }
+    setConfirmAction(() => async () => {
+      try {
+        await consentApi.log({ consentType: 'certificate_responsibility', documentVersion: LEGAL_VERSIONS.TOS, accepted: true, method: 'certificate_modal', certificateId: installationId });
+      } catch { /* ignore */ }
+      await handleGenerateCie(format);
+    });
+  };
+
+  const requestSolicitudGeneration = (format: 'docx' | 'pdf') => {
+    if (!acceptedResponsibility) {
+      setError('Debes aceptar la declaración de responsabilidad antes de generar documentos oficiales.');
+      return;
+    }
+    setConfirmAction(() => async () => {
+      try {
+        await consentApi.log({ consentType: 'certificate_responsibility', documentVersion: LEGAL_VERSIONS.TOS, accepted: true, method: 'certificate_modal', certificateId: installationId });
+      } catch { /* ignore */ }
+      await handleGenerateSolicitud(format);
+    });
+  };
+
+  const handleConfirm = async () => {
+    if (!confirmAction) return;
+    setConfirmLoading(true);
+    try { await confirmAction(); } finally {
+      setConfirmLoading(false);
+      setConfirmAction(null);
+    }
   };
 
   const handleDownload = async (doc: Document) => {
@@ -151,6 +195,21 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
         </div>
       )}
 
+      {/* Responsibility checkbox for official documents */}
+      {hasCalculation && isCompliant && (
+        <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-surface-200 bg-white p-4">
+          <input
+            type="checkbox"
+            checked={acceptedResponsibility}
+            onChange={(e) => setAcceptedResponsibility(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-surface-300 text-brand-600 focus:ring-brand-600"
+          />
+          <span className="text-sm text-surface-600 leading-relaxed">
+            Declaro que he verificado todos los datos y cálculos de esta instalación. Como técnico firmante, asumo la responsabilidad sobre el contenido de los documentos oficiales generados.
+          </span>
+        </label>
+      )}
+
       {/* Generar documentos — 4 cards */}
       <div>
         <h3 className="text-sm font-semibold text-surface-50 mb-3 flex items-center gap-2">
@@ -178,10 +237,10 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
             <p className="text-xs text-surface-500 leading-relaxed">CIE/BRIE oficial para tramitación.</p>
             {hasCalculation && !isCompliant && <p className="text-xs text-amber-600">⚠ Requiere cumplimiento REBT</p>}
             <div className="flex gap-2 mt-auto">
-              <Button size="sm" variant="outline" className="flex-1" disabled={!hasCalculation || !isCompliant || generating?.startsWith('CERTIFICADO')} onClick={() => handleGenerateCie('xls')}>
+              <Button size="sm" variant="outline" className="flex-1" disabled={!hasCalculation || !isCompliant || generating?.startsWith('CERTIFICADO')} onClick={() => requestCieGeneration('xls')}>
                 {generating === 'CERTIFICADO_xls' ? <Loader2 className="h-3 w-3 animate-spin" /> : <><FileSpreadsheet className="mr-1 h-3 w-3" />Excel</>}
               </Button>
-              <Button size="sm" className="flex-1" disabled={!hasCalculation || !isCompliant || generating?.startsWith('CERTIFICADO')} onClick={() => handleGenerateCie('pdf')}>
+              <Button size="sm" className="flex-1" disabled={!hasCalculation || !isCompliant || generating?.startsWith('CERTIFICADO')} onClick={() => requestCieGeneration('pdf')}>
                 {generating === 'CERTIFICADO_pdf' ? <Loader2 className="h-3 w-3 animate-spin" /> : <><FileText className="mr-1 h-3 w-3" />PDF</>}
               </Button>
             </div>
@@ -196,10 +255,10 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
             <p className="text-xs text-surface-500 leading-relaxed">Solicitud oficial para la DGTEyEC.</p>
             {hasCalculation && !isCompliant && <p className="text-xs text-amber-600">⚠ Requiere cumplimiento REBT</p>}
             <div className="flex gap-2 mt-auto">
-              <Button size="sm" variant="outline" className="flex-1" disabled={!hasCalculation || !isCompliant || generating?.startsWith('SOLICITUD')} onClick={() => handleGenerateSolicitud('docx')}>
+              <Button size="sm" variant="outline" className="flex-1" disabled={!hasCalculation || !isCompliant || generating?.startsWith('SOLICITUD')} onClick={() => requestSolicitudGeneration('docx')}>
                 {generating === 'SOLICITUD_docx' ? <Loader2 className="h-3 w-3 animate-spin" /> : <><FileText className="mr-1 h-3 w-3" />Word</>}
               </Button>
-              <Button size="sm" className="flex-1" disabled={!hasCalculation || !isCompliant || generating?.startsWith('SOLICITUD')} onClick={() => handleGenerateSolicitud('pdf')}>
+              <Button size="sm" className="flex-1" disabled={!hasCalculation || !isCompliant || generating?.startsWith('SOLICITUD')} onClick={() => requestSolicitudGeneration('pdf')}>
                 {generating === 'SOLICITUD_pdf' ? <Loader2 className="h-3 w-3 animate-spin" /> : <><FileText className="mr-1 h-3 w-3" />PDF</>}
               </Button>
             </div>
@@ -308,6 +367,14 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
 
       {/* Upgrade modal — shown when CIE limit reached */}
       <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />
+
+      {/* Certificate confirmation modal */}
+      <CertificateConfirmationModal
+        open={!!confirmAction}
+        onOpenChange={(open) => { if (!open) setConfirmAction(null); }}
+        onConfirm={handleConfirm}
+        loading={confirmLoading}
+      />
     </div>
   );
 }

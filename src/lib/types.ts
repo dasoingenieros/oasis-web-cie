@@ -60,6 +60,13 @@ export interface Installation {
   tenantId: string;
   userId: string;
   tipoDocumentacion?: TipoDocumentacion | null;
+  installationType?: string | null;
+  expedienteType?: string | null;
+  referencia?: string | null;
+  puntosRecarga?: number | null;
+  esquemaIve?: string | null;
+  potenciaPico?: number | null;
+  modalidadAutoconsumo?: string | null;
   titularName?: string | null;
   titularNif?: string | null;
   titularAddress?: string | null;
@@ -84,9 +91,26 @@ export interface Installation {
 
 export interface CreateInstallationDto {
   titularName?: string;
+  titularNombre?: string;
+  titularApellido1?: string;
+  titularApellido2?: string;
   titularNif?: string;
+  titularTipoVia?: string;
+  titularNombreVia?: string;
+  titularNumero?: string;
+  titularCp?: string;
+  titularLocalidad?: string;
   titularAddress?: string;
   address?: string;
+  // Emplazamiento (dirección separada)
+  emplazTipoVia?: string;
+  emplazNombreVia?: string;
+  emplazNumero?: string;
+  emplazPiso?: string;
+  emplazPuerta?: string;
+  emplazCp?: string;
+  emplazLocalidad?: string;
+  emplazProvincia?: string;
   cups?: string;
   supplyType?: SupplyType;
   contractedPower?: number;
@@ -95,6 +119,19 @@ export interface CreateInstallationDto {
   installerNif?: string;
   installerRegNum?: string;
   tipoDocumentacion?: TipoDocumentacion;
+  installationType?: string;
+  expedienteType?: string;
+  referencia?: string;
+  puntosRecarga?: number;
+  esquemaIve?: string;
+  potenciaPico?: number;
+  modalidadAutoconsumo?: string;
+  gradoElectrificacion?: string;
+}
+
+export interface WaitlistDto {
+  email: string;
+  installationType: string;
 }
 
 export type UpdateInstallationDto = Partial<CreateInstallationDto> & Record<string, any>;
@@ -271,8 +308,9 @@ export interface PaginatedResponse<T> {
 export interface UsageData {
   certsGenerated: number;
   maxCerts: number;
-  plan: 'free' | 'pro' | 'empresa';
-  subscriptionStatus?: string | null;
+  plan: string;
+  isLimited: boolean;
+  remaining: number;
 }
 
 // ─── Dashboard stats ─────────────────────────────────────────

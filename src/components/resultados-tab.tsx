@@ -29,10 +29,10 @@ import {
   CheckCircle2,
   XCircle,
   Info,
-  RefreshCw,
-  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CalculationDisclaimer } from '@/components/legal/calculation-disclaimer';
+import { NormativeVersionBanner } from '@/components/legal/normative-version-banner';
 
 // ─── Tipo del motor (resultSnapshot.circuits[]) ────────────────
 interface EngineCircuitResult {
@@ -101,8 +101,6 @@ interface ResultadosTabProps {
   supplyResult?: any;
   installation?: any;
   isCalculating: boolean;
-  documentCount?: number;
-  onRecalculate: () => void;
   onGoToCuadro: () => void;
 }
 
@@ -112,8 +110,6 @@ export function ResultadosTab({
   supplyResult,
   installation,
   isCalculating,
-  documentCount = 0,
-  onRecalculate,
   onGoToCuadro,
 }: ResultadosTabProps) {
   // Si no hay cálculo, mostrar estado vacío
@@ -196,6 +192,9 @@ export function ResultadosTab({
 
   return (
     <div className="space-y-6">
+      <NormativeVersionBanner />
+      <CalculationDisclaimer />
+
       {/* ── Banner compliance ── */}
       <div
         className={cn(
@@ -211,7 +210,7 @@ export function ResultadosTab({
           <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
         )}
         <div>
-          <p className={cn('text-sm font-semibold', calculation.allCompliant ? 'text-emerald-300' : 'text-red-300')}>
+          <p className={cn('text-sm font-semibold', calculation.allCompliant ? 'text-emerald-800' : 'text-red-800')}>
             {calculation.allCompliant
               ? 'Todos los circuitos cumplen con el REBT'
               : 'Algunos circuitos NO cumplen con el REBT'}
@@ -239,7 +238,7 @@ export function ResultadosTab({
 
       {/* ── Tabla de circuitos ── */}
       <div>
-        <h3 className="text-sm font-semibold text-surface-50 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-surface-800 mb-3 flex items-center gap-2">
           <Cable className="h-4 w-4" />
           Resultados por circuito
         </h3>
@@ -270,23 +269,10 @@ export function ResultadosTab({
       </div>
 
       {/* ── Footer ── */}
-      {documentCount > 0 && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-50 px-3 py-2 flex items-center gap-2 text-xs text-amber-600">
-          <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-          <span>Hay {documentCount} documento{documentCount !== 1 ? 's' : ''} emitido{documentCount !== 1 ? 's' : ''}. Recalcular puede afectar la coherencia. Los nuevos documentos se generarán como nueva versión.</span>
-        </div>
-      )}
-      <div className="flex items-center justify-between pt-2">
+      <div className="pt-2">
         <p className="text-xs text-surface-400">
           Motor v{calculation.engineVersion} · Norma: {calculation.normVersion} · Cálculo v{calculation.version}
         </p>
-        <Button variant="outline" size="sm" onClick={onRecalculate} disabled={isCalculating}>
-          {isCalculating ? (
-            <><RefreshCw className="mr-2 h-3 w-3 animate-spin" />Calculando...</>
-          ) : (
-            <><RefreshCw className="mr-2 h-3 w-3" />Recalcular</>
-          )}
-        </Button>
       </div>
     </div>
   );
@@ -306,7 +292,7 @@ function StatCard({ icon: Icon, label, value, color }: {
         <Icon className={cn('h-5 w-5', color)} />
         <div>
           <p className="text-xs text-surface-500">{label}</p>
-          <p className="text-lg font-bold text-surface-50">{value}</p>
+          <p className="text-lg font-bold text-surface-900">{value}</p>
         </div>
       </div>
     </div>
@@ -349,7 +335,7 @@ function CircuitRow({ circuit }: { circuit: MergedCircuit }) {
         </td>
         <td className="px-3 py-2.5 font-medium text-surface-700">{circuit.name}</td>
         <td className="px-3 py-2.5 text-right font-mono text-xs">{formatPower(circuit.power)}</td>
-        <td className="px-3 py-2.5 text-right font-mono text-xs font-semibold text-surface-50">
+        <td className="px-3 py-2.5 text-right font-mono text-xs font-semibold text-surface-900">
           {formatSection(circuit.sectionMm2)}
         </td>
         <td className={cn(
@@ -405,7 +391,7 @@ function CircuitRow({ circuit }: { circuit: MergedCircuit }) {
                         </code>
                       )}
                       {step.result && (
-                        <p className="mt-1 text-xs font-semibold text-surface-50">→ {step.result}</p>
+                        <p className="mt-1 text-xs font-semibold text-surface-900">→ {step.result}</p>
                       )}
                       {step.reference && (
                         <span className="inline-block mt-1 rounded border border-surface-200 bg-white px-1.5 py-0.5 text-[10px] text-surface-500">

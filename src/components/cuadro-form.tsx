@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import type { Circuit, CreateCircuitDto, SupplyType } from '@/lib/types';
+import type { Circuit, CreateCircuitDto, SupplyType, ElectricalPanel } from '@/lib/types';
+import { panelsApi } from '@/lib/api-client';
 import { getTemplatesForSupplyType, type CircuitTemplate } from '@/lib/schemas';
 import {
   Plus,
@@ -52,6 +53,125 @@ function piaForICalc(iCalcA: number): number {
   return PIA_RATINGS.find((p) => p >= iCalcA) ?? PIA_RATINGS[PIA_RATINGS.length - 1]!;
 }
 
+// ─── ITC-BT-25 Constraints ───────────────────────────────────
+
+/** Límites por circuito según ITC-BT-25 Tabla 1 */
+const ITC_BT25_CONSTRAINTS: Record<string, { maxPiaA: number; minSectionMm2: number }> = {
+  'C1':   { maxPiaA: 10, minSectionMm2: 1.5 },
+  'C2':   { maxPiaA: 16, minSectionMm2: 2.5 },
+  'C3':   { maxPiaA: 25, minSectionMm2: 6 },
+  'C4':   { maxPiaA: 20, minSectionMm2: 4 },
+  'C4.1': { maxPiaA: 20, minSectionMm2: 4 },
+  'C4.2': { maxPiaA: 20, minSectionMm2: 4 },
+  'C4.3': { maxPiaA: 20, minSectionMm2: 4 },
+  'C5':   { maxPiaA: 16, minSectionMm2: 2.5 },
+  'C6':   { maxPiaA: 10, minSectionMm2: 1.5 },
+  'C7':   { maxPiaA: 16, minSectionMm2: 2.5 },
+  'C8':   { maxPiaA: 25, minSectionMm2: 6 },
+  'C9':   { maxPiaA: 25, minSectionMm2: 6 },
+  'C10':  { maxPiaA: 20, minSectionMm2: 4 },
+  'C11':  { maxPiaA: 10, minSectionMm2: 1.5 },
+  'C12':  { maxPiaA: 16, minSectionMm2: 2.5 },
+};
+
+const MAX_CIRCUITS_PER_DIFF_VIVIENDA = 5;
+
+// ─── Validation ─────────────────────────────────────────────
+
+interface ValidationError {
+  circuitKey: string;
+  circuitLabel: string;
+  rule: string;
+  actual: string;
+  expected: string;
+}
+
+function validateBeforeCalc(
+  rows: CircuitRow[],
+  panel: ElectricalPanel | null,
+  supplyType: string | null | undefined,
+): ValidationError[] {
+  const errors: ValidationError[] = [];
+  const isVivienda = supplyType?.startsWith('VIVIENDA');
+
+  for (const row of rows) {
+    const label = [row.code, row.name].filter(Boolean).join(' — ') || `Circuito #${row.order}`;
+
+    // ── Required fields
+    if (!row.name) {
+      errors.push({ circuitKey: row.key, circuitLabel: label, rule: 'Nombre obligatorio', actual: '(vacío)', expected: 'Nombre del circuito' });
+    }
+    if (row.iCalcA <= 0) {
+      errors.push({ circuitKey: row.key, circuitLabel: label, rule: 'Intensidad de cálculo > 0', actual: `${row.iCalcA} A`, expected: '> 0 A' });
+    }
+    if (row.length <= 0) {
+      errors.push({ circuitKey: row.key, circuitLabel: label, rule: 'Longitud > 0', actual: `${row.length} m`, expected: '> 0 m' });
+    }
+
+    // ── ITC-BT-25 constraints (for codes C1-C12)
+    const constraint = ITC_BT25_CONSTRAINTS[row.code];
+    if (constraint) {
+      const piaA = piaForICalc(row.iCalcA);
+      if (piaA > constraint.maxPiaA) {
+        errors.push({
+          circuitKey: row.key, circuitLabel: label,
+          rule: `PIA máx. ITC-BT-25 (${row.code})`,
+          actual: `${piaA} A`,
+          expected: `≤ ${constraint.maxPiaA} A`,
+        });
+      }
+      const sectionMm2 = sectionForPia(piaA);
+      if (sectionMm2 < constraint.minSectionMm2) {
+        errors.push({
+          circuitKey: row.key, circuitLabel: label,
+          rule: `Sección mín. ITC-BT-25 (${row.code})`,
+          actual: `${sectionMm2} mm²`,
+          expected: `≥ ${constraint.minSectionMm2} mm²`,
+        });
+      }
+    }
+
+    // ── Thermal check: Iz corrected ≥ I cálculo
+    if (row.iCalcA > 0) {
+      const piaA = piaForICalc(row.iCalcA);
+      const sectionMm2 = sectionForPia(piaA);
+      const entry = SECTION_TABLE.find((s) => s.section === sectionMm2);
+      if (entry) {
+        const izCorrected = entry.iz * row.tempCorrFactor * row.groupCorrFactor;
+        if (izCorrected < row.iCalcA) {
+          errors.push({
+            circuitKey: row.key, circuitLabel: label,
+            rule: 'Criterio térmico (Iz corregida ≥ I cálc.)',
+            actual: `Iz = ${izCorrected.toFixed(1)} A`,
+            expected: `≥ ${row.iCalcA} A (revisar factores corrección)`,
+          });
+        }
+      }
+    }
+  }
+
+  // ── Max circuits per differential (viviendas — ITC-BT-25)
+  if (isVivienda && panel?.differentials) {
+    for (const diff of panel.differentials) {
+      if (diff.circuits.length > MAX_CIRCUITS_PER_DIFF_VIVIENDA) {
+        // Mark all circuits beyond the limit
+        for (let i = MAX_CIRCUITS_PER_DIFF_VIVIENDA; i < diff.circuits.length; i++) {
+          const c = diff.circuits[i]!;
+          errors.push({
+            circuitKey: c.id,
+            circuitLabel: `Dif. "${diff.name}"`,
+            rule: `Máx. ${MAX_CIRCUITS_PER_DIFF_VIVIENDA} circuitos/diferencial (ITC-BT-25)`,
+            actual: `${diff.circuits.length} circuitos asignados`,
+            expected: `≤ ${MAX_CIRCUITS_PER_DIFF_VIVIENDA} circuitos`,
+          });
+        }
+      }
+    }
+  }
+
+  return errors;
+}
+
 // ─── Types ───────────────────────────────────────────────────
 
 interface CuadroFormProps {
@@ -59,10 +179,11 @@ interface CuadroFormProps {
   supplyType: SupplyType | string | null | undefined;
   supplyResult?: any;
   installation?: any;
+  installationId: string;
   isSaving: boolean;
   isCalculating: boolean;
   onSave: (circuits: CreateCircuitDto[]) => Promise<void>;
-  onCalculate: () => Promise<void>;
+  onCalculate: () => Promise<boolean>;
 }
 
 interface ManiobraDevice {
@@ -232,6 +353,7 @@ export function CuadroForm({
   supplyType,
   supplyResult,
   installation,
+  installationId,
   isSaving,
   isCalculating,
   onSave,
@@ -241,6 +363,32 @@ export function CuadroForm({
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [expandedManiobra, setExpandedManiobra] = useState<Set<string>>(new Set());
+  const [panel, setPanel] = useState<ElectricalPanel | null>(null);
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const failedKeys = useMemo(() => new Set(validationErrors.map((e) => e.circuitKey)), [validationErrors]);
+
+  // Fetch panel data to check differentials — refetch when circuits change
+  // (user flow: save circuits → create differentials → assign → calculate)
+  const fetchPanel = useCallback(() => {
+    if (installationId) {
+      panelsApi.get(installationId).then(setPanel).catch(() => setPanel(null));
+    }
+  }, [installationId]);
+
+  useEffect(() => { fetchPanel(); }, [fetchPanel, circuits]);
+
+  // Calculate whether the "Calcular" button should be disabled
+  const calcDisabledReason = useMemo(() => {
+    if (rows.length === 0) return 'Añade circuitos y asígnalos a diferenciales antes de calcular';
+    if (!panel || !panel.differentials || panel.differentials.length === 0)
+      return 'Añade circuitos y asígnalos a diferenciales antes de calcular';
+    // Check if all saved circuits are assigned to a differential
+    const assignedCircuitIds = new Set(panel.differentials.flatMap(d => d.circuits.map(c => c.id)));
+    const savedCircuits = circuits.filter(c => c.id);
+    if (savedCircuits.length > 0 && savedCircuits.some(c => !assignedCircuitIds.has(c.id)))
+      return 'Añade circuitos y asígnalos a diferenciales antes de calcular';
+    return null;
+  }, [rows.length, panel, circuits]);
 
   useEffect(() => {
     if (circuits.length > 0) {
@@ -327,6 +475,20 @@ export function CuadroForm({
   };
 
   const handleCalculate = async () => {
+    // Refresh panel data before validating
+    let currentPanel = panel;
+    if (installationId) {
+      try {
+        currentPanel = await panelsApi.get(installationId);
+        setPanel(currentPanel);
+      } catch { /* keep existing */ }
+    }
+
+    // Pre-validation: ITC rules + circuit params + differential limits
+    const errors = validateBeforeCalc(rows, currentPanel, supplyType);
+    setValidationErrors(errors);
+    if (errors.length > 0) return;
+
     if (dirty) {
       await handleSave();
     }
@@ -383,18 +545,6 @@ export function CuadroForm({
               ? 'Pulsa "Cargar circuitos ITC-BT-25" para rellenar automáticamente, o añade circuitos manualmente.'
               : 'Añade los circuitos de la instalación manualmente.'}
           </p>
-          <div className="mt-4 flex gap-2">
-            {supplyType && supplyType !== 'LOCAL_COMERCIAL' && (
-              <Button size="sm" onClick={loadTemplates}>
-                <Wand2 className="mr-2 h-3.5 w-3.5" />
-                Cargar plantilla
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={addRow}>
-              <Plus className="mr-2 h-3.5 w-3.5" />
-              Añadir manualmente
-            </Button>
-          </div>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-surface-200">
@@ -433,7 +583,13 @@ export function CuadroForm({
                 return (
                   <React.Fragment key={row.key}>
                   <tr
-                    className={`border-b border-surface-600 transition-colors hover:bg-surface-50/50${row.maniobraChain.length > 0 ? ' bg-blue-500/5' : ''}`}
+                    className={`border-b transition-colors hover:bg-surface-50/50${
+                      failedKeys.has(row.key)
+                        ? ' bg-red-50 border-red-300'
+                        : row.maniobraChain.length > 0
+                          ? ' bg-blue-500/5 border-surface-600'
+                          : ' border-surface-600'
+                    }`}
                   >
                     {/* # */}
                     <td className="px-1.5 py-1 text-surface-400 tabular-nums text-xs">
@@ -732,25 +888,64 @@ export function CuadroForm({
             )}
           </Button>
 
-          <Button onClick={handleCalculate} disabled={isCalculating || rows.length === 0}>
-            {isCalculating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Calculando…
-              </>
-            ) : (
-              <>
-                <Calculator className="mr-2 h-4 w-4" />
-                Calcular instalación
-              </>
-            )}
-          </Button>
+          <span title={calcDisabledReason || undefined} onMouseEnter={fetchPanel}>
+            <Button onClick={handleCalculate} disabled={isCalculating || !!calcDisabledReason}>
+              {isCalculating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Calculando…
+                </>
+              ) : (
+                <>
+                  <Calculator className="mr-2 h-4 w-4" />
+                  Calcular instalación
+                </>
+              )}
+            </Button>
+          </span>
 
           {dirty && (
             <span className="text-xs text-amber-600">
               Cambios sin guardar
             </span>
           )}
+        </div>
+      )}
+
+      {/* Validation errors panel */}
+      {validationErrors.length > 0 && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+              <span className="text-sm font-semibold text-red-700">
+                {validationErrors.length} error{validationErrors.length !== 1 ? 'es' : ''} de validación
+              </span>
+            </div>
+            <button
+              onClick={() => setValidationErrors([])}
+              className="rounded p-0.5 text-red-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+              title="Cerrar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="divide-y divide-red-200">
+            {validationErrors.map((err, i) => (
+              <div key={i} className="py-2 first:pt-0 last:pb-0">
+                <div className="flex items-start gap-2">
+                  <span className="text-xs font-medium text-red-800 min-w-0">
+                    {err.circuitLabel}
+                  </span>
+                </div>
+                <p className="text-xs text-red-700 mt-0.5">
+                  <span className="font-medium">{err.rule}</span>
+                  {' — '}tiene: <span className="font-mono bg-red-100 px-1 rounded">{err.actual}</span>
+                  {', '}esperado: <span className="font-mono bg-red-100 px-1 rounded">{err.expected}</span>
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

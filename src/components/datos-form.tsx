@@ -4,7 +4,8 @@ import { useEffect, useState, useMemo } from 'react';
 import type { Installation, UpdateInstallationDto, SupplyType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Save, Loader2, CheckCircle2, ChevronDown, ChevronRight, AlertTriangle, Lock, HelpCircle } from 'lucide-react';
+import { Save, Loader2, CheckCircle2, ChevronDown, ChevronRight, AlertTriangle, Lock, HelpCircle, Info } from 'lucide-react';
+import { getInstallationType } from '@/lib/installation-types';
 
 // ─── Campos que intervienen en cálculos (bloqueados tras calcular) ───
 const CALC_LOCKED_FIELDS = new Set([
@@ -91,6 +92,36 @@ const TIPOS_INSTALACION_CIE = [
   { value: 'OTRAS NO CONTEMPLADAS', label: 'Otras no contempladas' },
 ];
 
+// ─── Potencias normalizadas REBT por tipo y tensión ──────────
+const POTENCIAS_MONO: Array<{ value: string; label: string }> = [
+  { value: '3450', label: '3.450 W (15A)' },
+  { value: '5750', label: '5.750 W (25A)' },
+  { value: '7360', label: '7.360 W (32A)' },
+  { value: '9200', label: '9.200 W (40A)' },
+  { value: '11500', label: '11.500 W (50A)' },
+  { value: '14490', label: '14.490 W (63A)' },
+];
+const POTENCIAS_TRI: Array<{ value: string; label: string }> = [
+  { value: '10392', label: '10.392 W (15A)' },
+  { value: '13856', label: '13.856 W (20A)' },
+  { value: '17321', label: '17.321 W (25A)' },
+  { value: '20785', label: '20.785 W (30A)' },
+  { value: '27713', label: '27.713 W (40A)' },
+  { value: '34641', label: '34.641 W (50A)' },
+  { value: '43648', label: '43.648 W (63A)' },
+];
+const POTENCIAS_REBT_BASICA_MONO = [POTENCIAS_MONO[1]]; // 5.750 W only
+const POTENCIAS_REBT_BASICA_TRI = POTENCIAS_TRI.slice(0, 3); // up to 17.321 W
+const POTENCIAS_REBT_ELEVADA_MONO = POTENCIAS_MONO.slice(1); // 5.750 – 14.490 W
+const POTENCIAS_REBT_ELEVADA_TRI = POTENCIAS_TRI;
+
+function getPotenciasRebt(supplyType: string, voltage: string): Array<{ value: string; label: string }> | null {
+  const isTri = voltage === '400';
+  if (supplyType === 'VIVIENDA_BASICA') return isTri ? POTENCIAS_REBT_BASICA_TRI : POTENCIAS_REBT_BASICA_MONO;
+  if (supplyType === 'VIVIENDA_ELEVADA') return isTri ? POTENCIAS_REBT_ELEVADA_TRI : POTENCIAS_REBT_ELEVADA_MONO;
+  return null;
+}
+
 interface DatosFormProps { installation: Installation; isSaving: boolean; onSave: (data: UpdateInstallationDto) => Promise<void>; }
 
 function Section({ title, num, defaultOpen = true, children, badge }: { title: string; num: number; defaultOpen?: boolean; children: React.ReactNode; badge?: React.ReactNode; }) {
@@ -134,8 +165,9 @@ const FIELD_HELP: Record<string, string> = {
   seccionDi: 'Sección del conductor de la Derivación Individual (mm²). Calculada automáticamente.',
   materialDi: 'Cu = Cobre, Al = Aluminio.',
   longitudDi: 'Longitud de la Derivación Individual en metros, desde el contador hasta el cuadro.',
-  aislamientoDi: 'PVC = Policloruro de vinilo, XLPE = Polietileno reticulado, EPR = Etileno-propileno.',
-  tipoInstalacionDi: 'Según ITC-BT-20. E.T.F. = Empotrado tubo flexible, T.P. = Tubo protector, etc.',
+  aislamientoDi: 'PVC: Uso general, hasta 70 °C. XLPE: Mayor capacidad de corriente, hasta 90 °C, recomendado para potencias altas. EPR: Mismo límite que XLPE (90 °C), más flexible, adecuado para instalaciones con curvas o movilidad.',
+  aislamientoLga: 'PVC: Uso general, hasta 70 °C. XLPE: Mayor capacidad de corriente, hasta 90 °C, recomendado para potencias altas. EPR: Mismo límite que XLPE (90 °C), más flexible, adecuado para instalaciones con curvas o movilidad.',
+  tipoInstalacionDi: 'Método de instalación según ITC-BT-19, Tabla 1. A1/A2: Empotrado en pared aislante. B1/B2: En tubo sobre pared o empotrado en obra. C: Cable sobre pared o bandeja maciza. D: Enterrado en tubo. E: Cable al aire en bandeja perforada. F: Conductores al aire espaciados.',
   // Módulo medida
   tipoModuloMedida: 'Envolvente, panelable o armario independiente.',
   situacionModulo: 'Interior del local, en fachada, en cuarto de centralización, etc.',
@@ -172,18 +204,24 @@ function HelpTip({ field }: { field: string }) {
   const text = FIELD_HELP[field];
   if (!text) return null;
   return (
-    <span className="relative inline-block ml-1">
+    <span className="relative inline-block ml-1 group">
       <button
         type="button"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(!open); }}
-        onBlur={() => setTimeout(() => setOpen(false), 200)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setTimeout(() => setOpen(false), 150)}
         className="text-surface-400 hover:text-blue-500 transition-colors"
         aria-label="Ayuda"
       >
         <HelpCircle className="inline h-3 w-3" />
       </button>
       {open && (
-        <span className="absolute z-50 left-0 top-5 w-64 rounded-lg border border-surface-200 bg-white px-3 py-2 text-xs text-surface-700 shadow-lg leading-relaxed">
+        <span
+          className="absolute z-50 left-0 top-5 w-72 rounded-lg border border-surface-200 bg-white px-3 py-2.5 text-xs text-surface-700 shadow-lg leading-relaxed"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+        >
           {text}
         </span>
       )}
@@ -364,6 +402,19 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
         {sv.filter((s) => !s.ok).map((s) => <p key={s.field} className="text-xs text-amber-600 mt-1">⚠ {s.msg}</p>)}
       </div>
 
+      {/* BANNER TIPO DE INSTALACIÓN */}
+      {(installation as any).installationType && (() => {
+        const instType = getInstallationType((installation as any).installationType);
+        const Icon = instType?.icon;
+        return (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 flex items-center gap-2 text-sm text-blue-700">
+            {Icon ? <Icon className="h-4 w-4" /> : <Info className="h-4 w-4" />}
+            Tipo: {instType?.name || (installation as any).installationType}
+            {instType?.sub && <span className="text-blue-500 text-xs">— {instType.sub}</span>}
+          </div>
+        );
+      })()}
+
       {/* 1. AUTOR DE LA MEMORIA */}
       <Section title="Autor de la Memoria" num={1}>
         <SelectField label="Autor" field="tipoAutor" value={data.tipoAutor??''} onChange={set} options={TIPOS_AUTOR} className="w-64" rf={rf} />
@@ -419,7 +470,11 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
         </div>
         <div className="grid grid-cols-3 gap-3">
           <SelectField label="Esquema de distribución" field="esquemaDistribucion" value={data.esquemaDistribucion??'TT'} onChange={set} options={ESQUEMAS_DISTRIBUCION} rf={rf} locked={isLocked('esquemaDistribucion')} />
-          <NumberField label="P. máx. admisible" field="potMaxAdmisible" value={data.potMaxAdmisible??''} onChange={set} suffix="kW" step="0.01" rf={rf} locked={isLocked('potMaxAdmisible')} />
+          {getPotenciasRebt(data.supplyType, data.supplyVoltage) ? (
+            <SelectField label="P. máx. admisible" field="potMaxAdmisible" value={data.potMaxAdmisible ? String(Math.round(Number(data.potMaxAdmisible) * 1000)) : ''} onChange={(f, v) => set(f, v ? Number(v) / 1000 : '')} options={getPotenciasRebt(data.supplyType, data.supplyVoltage)!} placeholder="Seleccionar potencia..." rf={rf} locked={isLocked('potMaxAdmisible')} />
+          ) : (
+            <NumberField label="P. máx. admisible" field="potMaxAdmisible" value={data.potMaxAdmisible??''} onChange={set} suffix="kW" step="0.01" rf={rf} locked={isLocked('potMaxAdmisible')} />
+          )}
           <TextField label="Grado electrificación" field="gradoElectrificacion" value={data.gradoElectrificacion??''} onChange={set} placeholder="BASICO / ELEVADO" rf={rf} locked={isLocked('gradoElectrificacion')} />
         </div>
         {isModifAmpl && (

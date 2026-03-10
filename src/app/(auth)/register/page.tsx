@@ -14,9 +14,16 @@ const registerSchema = z.object({
   tenantName: z.string().optional(),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
   confirmPassword: z.string(),
-  acceptedPrivacy: z.literal(true, {
-    errorMap: () => ({ message: 'Debes aceptar la política de privacidad' }),
+  acceptedTos: z.literal(true, {
+    errorMap: () => ({ message: 'Debes aceptar los Términos y Condiciones' }),
   }),
+  acceptedPrivacy: z.literal(true, {
+    errorMap: () => ({ message: 'Debes aceptar la Política de Privacidad' }),
+  }),
+  acceptedCompetence: z.literal(true, {
+    errorMap: () => ({ message: 'Debes declarar tu habilitación profesional' }),
+  }),
+  acceptedMarketing: z.boolean().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden',
   path: ['confirmPassword'],
@@ -35,7 +42,7 @@ export default function RegisterPage() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { acceptedPrivacy: false as any },
+    defaultValues: { acceptedTos: false as any, acceptedPrivacy: false as any, acceptedCompetence: false as any, acceptedMarketing: false },
   });
 
   const onSubmit = async (data: RegisterForm) => {
@@ -130,22 +137,61 @@ export default function RegisterPage() {
               {errors.confirmPassword && <p className="text-xs text-red-400 mt-1">{errors.confirmPassword.message}</p>}
             </div>
 
-            {/* RGPD Checkbox */}
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-surface-700 bg-surface-800 text-brand-600 focus:ring-brand-600"
-                {...register('acceptedPrivacy')}
-              />
-              <span className="text-sm text-surface-400 leading-snug">
-                He leído y acepto la{' '}
-                <a href="/privacidad" target="_blank" className="font-medium text-brand-400 hover:text-brand-300 underline">
-                  Política de Privacidad
-                </a>{' '}
-                y el tratamiento de mis datos personales conforme al RGPD.
-              </span>
-            </label>
-            {errors.acceptedPrivacy && <p className="text-xs text-red-400">{errors.acceptedPrivacy.message}</p>}
+            {/* Legal checkboxes */}
+            <div className="space-y-3 pt-1">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-surface-700 bg-surface-800 text-brand-600 focus:ring-brand-600"
+                  {...register('acceptedTos')}
+                />
+                <span className="text-sm text-surface-400 leading-snug">
+                  He leído y acepto los{' '}
+                  <a href="/legal/terminos" target="_blank" className="font-medium text-brand-400 hover:text-brand-300 underline">
+                    Términos y Condiciones de Uso
+                  </a>.
+                </span>
+              </label>
+              {errors.acceptedTos && <p className="text-xs text-red-400 -mt-1 ml-7">{errors.acceptedTos.message}</p>}
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-surface-700 bg-surface-800 text-brand-600 focus:ring-brand-600"
+                  {...register('acceptedPrivacy')}
+                />
+                <span className="text-sm text-surface-400 leading-snug">
+                  He leído y acepto la{' '}
+                  <a href="/legal/privacidad" target="_blank" className="font-medium text-brand-400 hover:text-brand-300 underline">
+                    Política de Privacidad
+                  </a>.
+                </span>
+              </label>
+              {errors.acceptedPrivacy && <p className="text-xs text-red-400 -mt-1 ml-7">{errors.acceptedPrivacy.message}</p>}
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-surface-700 bg-surface-800 text-brand-600 focus:ring-brand-600"
+                  {...register('acceptedCompetence')}
+                />
+                <span className="text-sm text-surface-400 leading-snug">
+                  Declaro que soy técnico competente habilitado conforme al artículo 12 del REBT (RD 842/2002).
+                </span>
+              </label>
+              {errors.acceptedCompetence && <p className="text-xs text-red-400 -mt-1 ml-7">{errors.acceptedCompetence.message}</p>}
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-surface-700 bg-surface-800 text-brand-600 focus:ring-brand-600"
+                  {...register('acceptedMarketing')}
+                />
+                <span className="text-sm text-surface-400 leading-snug">
+                  Acepto recibir comunicaciones comerciales y novedades de DASO Ingenieros por correo electrónico.
+                </span>
+              </label>
+            </div>
 
             <button
               type="submit"

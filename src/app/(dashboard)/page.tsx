@@ -67,19 +67,25 @@ export default function DashboardPage() {
   const handleDeleteRequest = (id: string) => {
     setDeleteTarget(id);
     setDeleteConfirmText('');
+    setDeleteError(null);
   };
+
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget || deleteConfirmText !== 'ELIMINAR') return;
     setIsDeleting(true);
+    setDeleteError(null);
     try {
       await deleteInstallation(deleteTarget);
-    } catch (e) {
+      setDeleteTarget(null);
+      setDeleteConfirmText('');
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Error al eliminar';
+      setDeleteError(typeof msg === 'string' ? msg : msg[0]);
       console.error(e);
     } finally {
       setIsDeleting(false);
-      setDeleteTarget(null);
-      setDeleteConfirmText('');
     }
   };
 
@@ -91,9 +97,9 @@ export default function DashboardPage() {
   ];
 
   // Usage banner
-  const isFreePlan = usage && usage.plan === 'free' && usage.maxCerts > 0;
+  const isFreePlan = usage?.isLimited;
   const usagePercent = usage && usage.maxCerts > 0 ? Math.min(100, Math.round((usage.certsGenerated / usage.maxCerts) * 100)) : 0;
-  const atLimit = usage && usage.maxCerts > 0 && usage.certsGenerated >= usage.maxCerts;
+  const atLimit = usage?.isLimited && usage.remaining === 0;
 
   return (
     <div className="space-y-6">
@@ -227,8 +233,11 @@ export default function DashboardPage() {
               placeholder="Escribe ELIMINAR"
               autoFocus
             />
+            {deleteError && (
+              <p className="mt-2 text-sm text-red-600 font-medium">{deleteError}</p>
+            )}
             <div className="mt-4 flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => { setDeleteTarget(null); setDeleteConfirmText(''); }}>
+              <Button variant="outline" size="sm" onClick={() => { setDeleteTarget(null); setDeleteConfirmText(''); setDeleteError(null); }}>
                 Cancelar
               </Button>
               <Button

@@ -126,6 +126,7 @@ export default function InstallationDetailPage() {
   } = useInstallation(id);
 
   const [documentCount, setDocumentCount] = useState(0);
+  const [calcSuccess, setCalcSuccess] = useState(false);
   useEffect(() => {
     if (id) { documentsApi.list(id).then(docs => setDocumentCount(docs.length)).catch(() => {}); }
   }, [id, calculation]);
@@ -159,26 +160,19 @@ export default function InstallationDetailPage() {
     await saveCircuits(dtos);
   };
 
-  const handleCalculate = async () => {
+  const handleCalculate = async (): Promise<boolean> => {
     try {
       await Promise.all([
         calculate(),
         calculateSupply(),
       ]);
+      setCalcSuccess(true);
+      setTimeout(() => setCalcSuccess(false), 3000);
       setActiveTab('resultados');
+      return true;
     } catch {
       alert('Error al calcular. Revisa que los circuitos estén guardados correctamente.');
-    }
-  };
-
-  const handleRecalculate = async () => {
-    try {
-      await Promise.all([
-        calculate(),
-        calculateSupply(),
-      ]);
-    } catch {
-      alert('Error al recalcular.');
+      return false;
     }
   };
 
@@ -205,6 +199,16 @@ export default function InstallationDetailPage() {
 
   return (
     <div className="space-y-6">
+      {/* Toast de éxito */}
+      {calcSuccess && (
+        <div className="fixed top-4 right-4 z-50 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 shadow-lg">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            <span className="text-sm font-medium text-emerald-800">Cálculo completado correctamente</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">
@@ -309,6 +313,7 @@ export default function InstallationDetailPage() {
                 supplyType={installation.supplyType}
                 supplyResult={supplyResult}
                 installation={installation}
+                installationId={id}
                 isSaving={isSaving}
                 isCalculating={isCalculating}
                 onSave={handleSaveCircuits}
@@ -328,8 +333,6 @@ export default function InstallationDetailPage() {
                 supplyResult={supplyResult}
                 installation={installation}
                 isCalculating={isCalculating}
-                documentCount={documentCount}
-                onRecalculate={handleRecalculate}
                 onGoToCuadro={() => setActiveTab('cuadro')}
               />
             </div>
