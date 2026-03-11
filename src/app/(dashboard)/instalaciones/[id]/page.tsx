@@ -255,7 +255,7 @@ export default function InstallationDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-surface-200">
+      <div className="sticky top-14 z-10 -mx-4 lg:-mx-6 px-4 lg:px-6 bg-white/95 backdrop-blur-sm flex gap-1 border-b border-surface-200">
         {tabs.map((tab) => (
           <button
             key={tab.id}
