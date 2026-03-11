@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, forwardRef, useImperativeHandle, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import type { Circuit, CreateCircuitDto, SupplyType, ElectricalPanel } from '@/lib/types';
+import type { Circuit, CreateCircuitDto, SupplyType, ElectricalPanel, CalculationResult } from '@/lib/types';
 import { panelsApi } from '@/lib/api-client';
 import { getTemplatesForSupplyType, type CircuitTemplate } from '@/lib/schemas';
 import {
@@ -108,26 +108,28 @@ function validateBeforeCalc(
       errors.push({ circuitKey: row.key, circuitLabel: label, rule: 'Longitud > 0', actual: `${row.length} m`, expected: '> 0 m' });
     }
 
-    // ── ITC-BT-25 constraints (for codes C1-C12)
-    const constraint = ITC_BT25_CONSTRAINTS[row.code];
-    if (constraint) {
-      const piaA = piaForICalc(row.iCalcA);
-      if (piaA > constraint.maxPiaA) {
-        errors.push({
-          circuitKey: row.key, circuitLabel: label,
-          rule: `PIA máx. ITC-BT-25 (${row.code})`,
-          actual: `${piaA} A`,
-          expected: `≤ ${constraint.maxPiaA} A`,
-        });
-      }
-      const sectionMm2 = sectionForPia(piaA);
-      if (sectionMm2 < constraint.minSectionMm2) {
-        errors.push({
-          circuitKey: row.key, circuitLabel: label,
-          rule: `Sección mín. ITC-BT-25 (${row.code})`,
-          actual: `${sectionMm2} mm²`,
-          expected: `≥ ${constraint.minSectionMm2} mm²`,
-        });
+    // ── ITC-BT-25 constraints (for codes C1-C12) — only for viviendas
+    if (isVivienda) {
+      const constraint = ITC_BT25_CONSTRAINTS[row.code];
+      if (constraint) {
+        const piaA = piaForICalc(row.iCalcA);
+        if (piaA > constraint.maxPiaA) {
+          errors.push({
+            circuitKey: row.key, circuitLabel: label,
+            rule: `PIA máx. ITC-BT-25 (${row.code})`,
+            actual: `${piaA} A`,
+            expected: `≤ ${constraint.maxPiaA} A`,
+          });
+        }
+        const sectionMm2 = sectionForPia(piaA);
+        if (sectionMm2 < constraint.minSectionMm2) {
+          errors.push({
+            circuitKey: row.key, circuitLabel: label,
+            rule: `Sección mín. ITC-BT-25 (${row.code})`,
+            actual: `${sectionMm2} mm²`,
+            expected: `≥ ${constraint.minSectionMm2} mm²`,
+          });
+        }
       }
     }
 
@@ -169,17 +171,39 @@ function validateBeforeCalc(
     }
   }
 
+  // ── Circuito trifásico (400V) solo en diferencial 4P
+  if (panel?.differentials) {
+    for (const diff of panel.differentials) {
+      if (diff.poles === 2) {
+        for (const c of diff.circuits) {
+          const row = rows.find((r) => r.key === c.id);
+          if (row && row.voltage === 400) {
+            errors.push({
+              circuitKey: c.id,
+              circuitLabel: row.name || `Circuito #${row.order}`,
+              rule: 'Circuito trifásico requiere diferencial 4P',
+              actual: `Dif. "${diff.name}" (2P)`,
+              expected: 'Diferencial de 4 polos',
+            });
+          }
+        }
+      }
+    }
+  }
+
   return errors;
 }
 
 // ─── Types ───────────────────────────────────────────────────
 
+export interface CuadroFormHandle { addRow: () => void; }
 interface CuadroFormProps {
   circuits: Circuit[];
   supplyType: SupplyType | string | null | undefined;
   supplyResult?: any;
   installation?: any;
   installationId: string;
+  calculation?: CalculationResult | null;
   isSaving: boolean;
   isCalculating: boolean;
   onSave: (circuits: CreateCircuitDto[]) => Promise<void>;
@@ -213,6 +237,7 @@ interface CircuitRow {
   maniobraChain: ManiobraDevice[];
   // Campos resultado (tras calcular)
   resultSection?: string;
+  resultSectionMm2?: number;
   resultCdtV?: number;
   resultPmaxKw?: number;
   resultPiaA?: number;
@@ -253,8 +278,6 @@ function templateToRow(t: CircuitTemplate, order: number): CircuitRow {
 
 function circuitToRow(c: Circuit): CircuitRow {
   const iCalcA = Math.round(c.power / c.voltage);
-  const piaA = c.assignedBreaker ? parseInt(c.assignedBreaker.replace(/\D/g, '')) : undefined;
-  const hasResults = c.calculatedSection != null;
   return {
     key: c.id,
     code: c.code ?? '',
@@ -273,16 +296,7 @@ function circuitToRow(c: Circuit): CircuitRow {
     installedPowerKw: '',
     isItcBt25: isItcBt25Code(c.code ?? ''),
     maniobraChain: (c.maniobraExtra as any)?.chain ?? (c.maniobraType ? [{ type: c.maniobraType, calibreA: c.maniobraCalibreA ?? undefined }] : []),
-    resultSection: hasResults
-      ? `${c.phases === 1 ? 2 : 4}×${c.calculatedSection}`
-      : undefined,
-    resultCdtV: c.voltageDrop != null
-      ? Math.round(c.voltage * (c.voltageDrop / 100) * 100) / 100
-      : undefined,
-    resultPmaxKw: hasResults
-      ? Math.round((c.voltage * iCalcA) / 10) / 100
-      : undefined,
-    resultPiaA: piaA,
+    // Result fields are populated from CalculationResult, not from circuit DB
   };
 }
 
@@ -348,17 +362,18 @@ const noSpinnerStyle = `
 
 // ─── Component ───────────────────────────────────────────────
 
-export function CuadroForm({
+export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function CuadroForm({
   circuits,
   supplyType,
   supplyResult,
   installation,
   installationId,
+  calculation,
   isSaving,
   isCalculating,
   onSave,
   onCalculate,
-}: CuadroFormProps) {
+}, ref) {
   const [rows, setRows] = useState<CircuitRow[]>([]);
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -390,11 +405,42 @@ export function CuadroForm({
     return null;
   }, [rows.length, panel, circuits]);
 
+  // Build lookup of calculation results by circuit ID
+  const calcResultsById = useMemo(() => {
+    const map = new Map<string, any>();
+    if (!calculation?.resultSnapshot) return map;
+    const snap = calculation.resultSnapshot as any;
+    const circuitResults = snap?.circuits ?? [];
+    for (const cr of circuitResults) {
+      if (cr?.id) map.set(cr.id, cr);
+    }
+    return map;
+  }, [calculation]);
+
   useEffect(() => {
     if (circuits.length > 0) {
-      setRows(circuits.map(circuitToRow));
+      const baseRows = circuits.map(circuitToRow);
+      // Merge calculation results into rows (read-only display, never modifies circuit DB)
+      if (calcResultsById.size > 0) {
+        for (const row of baseRows) {
+          const cr = calcResultsById.get(row.key);
+          if (cr) {
+            const nCond = row.voltage === 400 ? 4 : 2;
+            row.resultSection = `${nCond}×${cr.sectionMm2}`;
+            row.resultSectionMm2 = cr.sectionMm2;
+            row.resultCdtV = cr.voltageDropV ?? (cr.voltageDropPct != null
+              ? Math.round(row.voltage * (cr.voltageDropPct / 100) * 100) / 100
+              : undefined);
+            row.resultPmaxKw = cr.calculatedPowerW != null
+              ? Math.round(cr.calculatedPowerW / 10) / 100
+              : undefined;
+            row.resultPiaA = cr.breakerRatingA;
+          }
+        }
+      }
+      setRows(baseRows);
     }
-  }, [circuits]);
+  }, [circuits, calcResultsById]);
 
   const updateRow = useCallback((key: string, field: keyof CircuitRow, value: string | number) => {
     setRows((prev) =>
@@ -415,6 +461,10 @@ export function CuadroForm({
     setRows((prev) => [...prev, emptyRow(prev.length + 1)]);
     setDirty(true);
   }, []);
+
+  const addRowRef = useRef(addRow);
+  addRowRef.current = addRow;
+  useImperativeHandle(ref, () => ({ addRow: () => addRowRef.current() }), []);
 
   const toggleManiobra = useCallback((key: string) => {
     setExpandedManiobra((prev) => {
@@ -555,9 +605,10 @@ export function CuadroForm({
                 <th className="px-1.5 py-2 font-medium text-surface-700 w-12">Cód.</th>
                 <th className="px-1.5 py-2 font-medium text-surface-700 min-w-[60px]">Circuito</th>
                 <th className="px-1.5 py-2 font-medium text-surface-700 w-16 text-right">P.Cálc.<br/><span className="font-normal text-surface-400">kW</span></th>
-                <th className="px-1.5 py-2 font-medium text-surface-700 w-[70px] text-center">V</th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-[70px] text-center">V / Fases</th>
                 <th className="px-1.5 py-2 font-medium text-surface-700 w-14 text-center">I.Cálc.<br/><span className="font-normal text-surface-400">A</span></th>
-                <th className="px-1.5 py-2 font-medium text-surface-700 w-20 text-center">Cond.×S</th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-20 text-center">Sección</th>
+                <th className="px-1.5 py-2 font-medium text-surface-700 w-20 text-center">S.Calc.</th>
                 <th className="px-1.5 py-2 font-medium text-surface-700 w-14 text-center">Mat</th>
                 <th className="px-1.5 py-2 font-medium text-surface-700 w-20 text-center">Aisl.</th>
                 <th className="px-1.5 py-2 font-medium text-surface-700 w-16 text-center">Inst.</th>
@@ -577,8 +628,11 @@ export function CuadroForm({
                 const piaA = piaForICalc(row.iCalcA);
                 const sectionMm2 = sectionForPia(piaA);
                 const nCond = row.voltage === 400 ? 4 : 2;
-                const conductors = row.resultSection ?? `${nCond}×${sectionMm2}`;
+                const userSection = `${nCond}×${sectionMm2}`;
                 const displayPia = row.resultPiaA ?? piaA;
+                // Comparison: user section vs engine recommendation
+                const hasCalcSection = row.resultSectionMm2 != null;
+                const sectionInsufficient = hasCalcSection && sectionMm2 < row.resultSectionMm2!;
 
                 return (
                   <React.Fragment key={row.key}>
@@ -617,21 +671,24 @@ export function CuadroForm({
                     <td className="px-1.5 py-1 text-right">
                       <span className="text-xs tabular-nums text-surface-500">{pCalcKw}</span>
                     </td>
-                    {/* Tensión (V) */}
+                    {/* Tensión (V) + Fases */}
                     <td className="px-1.5 py-1 text-center">
-                      <select
-                        value={row.voltage}
-                        onChange={(e) => {
-                          const newV = Number(e.target.value);
-                          updateRow(row.key, 'voltage', newV);
-                          // Actualizar fases: 400V → trifásico (3), 230V → monofásico (1)
-                          updateRow(row.key, 'phases', newV === 400 ? 3 : 1);
-                        }}
-                        className={`${selectCls} w-[70px]`}
-                      >
-                        <option value={230}>230</option>
-                        <option value={400}>400</option>
-                      </select>
+                      {panel?.voltage === 400 ? (
+                        <select
+                          value={row.voltage}
+                          onChange={(e) => {
+                            const newV = Number(e.target.value);
+                            updateRow(row.key, 'voltage', newV);
+                            updateRow(row.key, 'phases', newV === 400 ? 3 : 1);
+                          }}
+                          className={`${selectCls} w-[70px]`}
+                        >
+                          <option value={230}>230 1F</option>
+                          <option value={400}>400 3F</option>
+                        </select>
+                      ) : (
+                        <span className="text-xs text-surface-500">230 1F</span>
+                      )}
                     </td>
                     {/* I. Cálculo (A) — select normalizado */}
                     <td className="px-1.5 py-1 text-center">
@@ -645,9 +702,32 @@ export function CuadroForm({
                         ))}
                       </select>
                     </td>
-                    {/* Conductores × Sección — auto-calculado */}
+                    {/* Sección usuario — nunca se sobreescribe */}
                     <td className="px-1.5 py-1 text-center">
-                      <span className="text-xs tabular-nums text-surface-500">{conductors}</span>
+                      <span
+                        className={`text-xs tabular-nums inline-flex items-center gap-1 rounded px-1 py-0.5 ${
+                          hasCalcSection
+                            ? sectionInsufficient
+                              ? 'bg-red-100 text-red-700 font-medium'
+                              : 'bg-emerald-100 text-emerald-700 font-medium'
+                            : 'text-surface-500'
+                        }`}
+                        title={
+                          hasCalcSection
+                            ? sectionInsufficient
+                              ? `Sección insuficiente. Mínimo recomendado: ${row.resultSectionMm2}mm²`
+                              : 'Cumple'
+                            : undefined
+                        }
+                      >
+                        {userSection}
+                      </span>
+                    </td>
+                    {/* Sección calculada — resultado del motor */}
+                    <td className="px-1.5 py-1 text-center">
+                      <span className="text-xs tabular-nums text-surface-400">
+                        {row.resultSection ?? '—'}
+                      </span>
                     </td>
                     {/* Material */}
                     <td className="px-1.5 py-1 text-center">
@@ -765,7 +845,7 @@ export function CuadroForm({
                   {/* Sub-fila maniobra expandible — cadena de dispositivos */}
                   {expandedManiobra.has(row.key) && (
                     <tr className="bg-blue-500/5 border-b border-surface-600">
-                      <td colSpan={16} className="px-3 py-2">
+                      <td colSpan={18} className="px-3 py-2">
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2 text-xs">
                             <span className="font-medium text-surface-500">Cadena maniobra:</span>
@@ -950,4 +1030,4 @@ export function CuadroForm({
       )}
     </div>
   );
-}
+});

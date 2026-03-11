@@ -187,15 +187,47 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
   // ─── IGA handlers ──────────────────────────────────────────
 
   const updateIga = useCallback((field: keyof IgaState, value: number | string) => {
-    setIga((prev) => {
-      const next = { ...prev, [field]: value };
-      if (field === 'voltage') {
-        next.poles = value === 400 ? 4 : 2;
+    if (field === 'voltage') {
+      const newVoltage = Number(value);
+      const oldVoltage = iga.voltage;
+
+      // Cambio de trifásico a monofásico: avisar si hay circuitos trifásicos
+      if (oldVoltage === 400 && newVoltage === 230) {
+        const triCircuits = circuits.filter((c) => c.voltage === 400);
+        if (triCircuits.length > 0) {
+          const ok = confirm(
+            `Cambiar a monofásico afectará a ${triCircuits.length} circuito${triCircuits.length > 1 ? 's' : ''} trifásico${triCircuits.length > 1 ? 's' : ''}.\n\n` +
+            `Los circuitos trifásicos deberán convertirse a monofásico manualmente.\n\n¿Continuar?`
+          );
+          if (!ok) return;
+        }
       }
-      return next;
-    });
+
+      // Cambio de monofásico a trifásico: info
+      if (oldVoltage === 230 && newVoltage === 400) {
+        // No warning needed, just enable tri options
+      }
+
+      setIga((prev) => ({
+        ...prev,
+        voltage: newVoltage,
+        poles: newVoltage === 400 ? 4 : 2,
+      }));
+
+      // Auto-actualizar polos de diferenciales según la nueva tensión
+      setDiffs((prev) =>
+        prev.map((d) => ({
+          ...d,
+          poles: newVoltage === 230 ? 2 : d.poles, // Mono → forzar 2P; tri → mantener actual
+        })),
+      );
+      setDirty(true);
+      return;
+    }
+
+    setIga((prev) => ({ ...prev, [field]: value }));
     setDirty(true);
-  }, []);
+  }, [iga.voltage, circuits]);
 
   const maxPowerW = calcMaxPowerW(iga.calibreA, iga.voltage);
   const maxPowerKw = (maxPowerW / 1000).toFixed(2);
@@ -535,9 +567,10 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
           diffs.map((diff, idx) => {
             const diffCircuits = circuits.filter((c) => diff.circuitIds.includes(c.id));
             const sumPias = diffCircuits.reduce((sum, c) => {
-              if (!c.assignedBreaker) return sum;
-              const m = c.assignedBreaker.match(/(\d+)A/);
-              return sum + (m && m[1] ? parseInt(m[1]) : 0);
+              // Compute PIA from circuit current (= power / voltage)
+              const iCalc = Math.round(c.power / c.voltage);
+              const piaA = IGA_RATINGS.find((r) => r >= iCalc) ?? 63;
+              return sum + piaA;
             }, 0);
 
             return (
@@ -594,6 +627,22 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
                     {DIFF_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
 
+                  {/* Polos — solo selector si IGA trifásico */}
+                  {iga.voltage === 400 ? (
+                    <select
+                      value={diff.poles}
+                      onChange={(e) => updateDiff(idx, 'poles', Number(e.target.value))}
+                      className={`${selectCls} w-16`}
+                    >
+                      <option value={2}>2P</option>
+                      <option value={4}>4P</option>
+                    </select>
+                  ) : (
+                    <span className="text-[11px] text-surface-500 bg-surface-100 rounded px-2 py-1">
+                      2P
+                    </span>
+                  )}
+
                   {/* Protección */}
                   {diff.isProtected === true && (
                     <span className="flex items-center gap-1 text-[11px] text-green-700 bg-green-500/15 rounded px-2 py-0.5">
@@ -628,21 +677,28 @@ export function PanelForm({ installationId, circuits, supplyType, contractedPowe
                       {circuits.map((c) => {
                         const isAssigned = diff.circuitIds.includes(c.id);
                         const isOther = !isAssigned && assignedIds.has(c.id);
+                        // Tri circuit (400V) solo puede ir en diferencial 4P
+                        const isTriCircuit = c.voltage === 400;
+                        const isIncompatible = isTriCircuit && diff.poles === 2 && !isAssigned;
+                        const isDisabled = isOther || isIncompatible;
                         return (
                           <button
                             key={c.id}
-                            onClick={() => !isOther && toggleCircuit(idx, c.id)}
-                            disabled={isOther}
+                            onClick={() => !isDisabled && toggleCircuit(idx, c.id)}
+                            disabled={isDisabled}
                             className={`rounded px-2 py-1 text-[11px] transition-colors ${
                               isAssigned
                                 ? 'bg-blue-500/15 text-blue-700 border border-blue-500/30'
+                                : isIncompatible
+                                ? 'bg-amber-50 text-amber-500 border border-amber-300 cursor-not-allowed'
                                 : isOther
                                 ? 'bg-surface-50 text-surface-400 border border-surface-600 cursor-not-allowed'
                                 : 'bg-surface-50 text-surface-700 border border-surface-200 hover:bg-blue-50 hover:border-blue-500/30'
                             }`}
-                            title={isOther ? 'Asignado a otro diferencial' : ''}
+                            title={isIncompatible ? 'Circuito trifásico: requiere diferencial 4P' : isOther ? 'Asignado a otro diferencial' : ''}
                           >
                             {c.code ?? `#${c.order}`} — {c.name}
+                            {isTriCircuit && <span className="ml-1 text-[9px] font-medium text-amber-600">3F</span>}
                           </button>
                         );
                       })}
