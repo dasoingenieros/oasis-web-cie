@@ -70,27 +70,133 @@ const SUPPLY_TYPES: Array<{ value: SupplyType; label: string }> = [{ value: 'VIV
 const AISLAMIENTOS = [{ value: 'XLPE', label: 'XLPE' },{ value: 'PVC', label: 'PVC' },{ value: 'EPR', label: 'EPR' }];
 const TIPOS_INSTALACION_DI = [{ value: 'TP', label: 'TP — Bajo Tubo Protector' },{ value: 'E.T.F.', label: 'E.T.F. — Empotrado Tubo Flexible' },{ value: 'F.D.P.', label: 'F.D.P. — Fijado sobre Pared' },{ value: 'ENTR', label: 'ENTR — Enterrado' },{ value: 'AERO', label: 'AERO — Aéreo' },{ value: 'C.P.', label: 'C.P. — Bajo Canales Protectores' },{ value: 'BANDJ', label: 'BANDJ — En Bandeja' }];
 const TIPOS_AUTOR = [{ value: 'INSTALADOR', label: 'Instalador autorizado' },{ value: 'TECNICO', label: 'Técnico cualificado' }];
-const TIPOS_INSTALACION_CIE = [
-  { value: 'VIVIENDA', label: 'Vivienda' },
-  { value: 'LOCAL/OFICINA (NO LPC)', label: 'Local/Oficina (no LPC)' },
-  { value: 'GARAJE VENTILACIÓN NATURAL', label: 'Garaje vent. natural' },
-  { value: 'GARAJE VENTILACIÓN FORZADA', label: 'Garaje vent. forzada' },
-  { value: 'INFRAESTRUCTURA DE RECARGA VEHICULO ELECTRICO', label: 'IRVE' },
-  { value: 'INSTALACIONES DE ENLACE', label: 'Instalaciones de enlace' },
-  { value: 'INSTALACIONES COMUNES', label: 'Instalaciones comunes' },
-  { value: 'AUTOCONSUMO', label: 'Autoconsumo' },
-  { value: 'INDUSTRIAS Y OTROS ESTABLECIMIENTOS INDUSTRIALES', label: 'Industrial' },
-  { value: 'ALUMBRADO EXTERIOR PÚBLICO', label: 'Alumbrado exterior público' },
-  { value: 'ALUMBRADO EXTERIOR PRIVADO', label: 'Alumbrado exterior privado' },
-  { value: 'LPC- BARES, RESTAURANTES O SIMILARES', label: 'LPC — Bares/Restaurantes' },
-  { value: 'LPC- ESTABLECIMIENTOS COMERCIALES', label: 'LPC — Establ. comerciales' },
-  { value: 'LPC- HOSPITALES, CLÍNICAS, AMBUL., CENTROS SALUD', label: 'LPC — Hospitales/Clínicas' },
-  { value: 'LPC- CENTROS DE ENSEÑANZA', label: 'LPC — Centros enseñanza' },
-  { value: 'LPC- HOTELES', label: 'LPC — Hoteles' },
-  { value: 'TEMP. ALIMENTA MAQUINA OBRAS CONSTRUCCIÓN', label: 'Temporal — Obras' },
-  { value: 'TEMP. EN LOCALES O EMPLAZAMIENTOS ABIERTOS', label: 'Temporal — Locales/ferias' },
-  { value: 'OTRAS NO CONTEMPLADAS', label: 'Otras no contempladas' },
-];
+// ─── Mapeo categoría wizard → subtipos CIE oficiales (Excel hoja OPCIONES col H) ───
+// Los values deben coincidir EXACTAMENTE con los del template CERTIFICADO_BASICO.xls
+const WIZARD_TO_CIE_TYPES: Record<string, Array<{ value: string; label: string }>> = {
+  vivienda: [
+    { value: 'VIVIENDA', label: 'Vivienda' },
+  ],
+  local: [
+    { value: 'LOCAL/OFICINA (NO LPC)', label: 'Local/Oficina (no LPC)' },
+  ],
+  industrial: [
+    { value: 'INDUSTRIAS Y OTROS ESTABLECIMIENTOS INDUSTRIALES', label: 'Industrial' },
+  ],
+  garaje: [
+    { value: 'GARAJE VENTILACIÓN NATURAL', label: 'Garaje ventilación natural' },
+  ],
+  enlace: [
+    { value: 'INSTALACIONES DE ENLACE', label: 'Instalaciones de enlace' },
+    { value: 'INSTALACIONES COMUNES', label: 'Instalaciones comunes' },
+  ],
+  temporal: [
+    { value: 'TEMP.  ALIMENTA MAQUINA OBRAS CONSTRUCCIÓN', label: 'Temporal — Obras construcción' },
+    { value: 'TEMP. EN LOCALES O EMPLAZAMIENTOS ABIERTOS', label: 'Temporal — Locales/ferias' },
+  ],
+  irve: [
+    { value: 'INFRAESTRUCTURA DE RECARGA VEHICULO ELECTRICO', label: 'IRVE' },
+  ],
+  autoconsumo: [
+    { value: 'AUTOCONSUMO', label: 'Autoconsumo' },
+    { value: 'GENERACION SOLAR FOTOVOLTAICA', label: 'Generación solar fotovoltaica' },
+    { value: 'GENERACION SOLAR TERMOELÉCTRICA', label: 'Generación solar termoeléctrica' },
+  ],
+  generacion: [
+    { value: 'GENERACION GRUPOS ELECTRÓGENOS FIJOS', label: 'Grupos electrógenos fijos' },
+    { value: 'GRUPOS ELECTRÓGENOS PORTÁTILES', label: 'Grupos electrógenos portátiles' },
+    { value: 'COGENERACIÓN', label: 'Cogeneración' },
+    { value: 'AEROGENERADORES', label: 'Aerogeneradores' },
+    { value: 'CONVERTIDORES', label: 'Convertidores' },
+  ],
+  lpc_host: [
+    { value: 'LPC- BARES, RESTAURANTES O SIMILARES', label: 'LPC — Bares/Restaurantes' },
+    { value: 'LPC- HOTELES', label: 'LPC — Hoteles' },
+    { value: 'LPC- HOSTALES', label: 'LPC — Hostales' },
+  ],
+  lpc_espec: [
+    { value: 'LPC - CINES', label: 'LPC — Cines' },
+    { value: 'LPC- TEATROS', label: 'LPC — Teatros' },
+    { value: 'LPC- AUDITORIOS', label: 'LPC — Auditorios' },
+    { value: 'LPC- PLAZAS DE TOROS', label: 'LPC — Plazas de toros' },
+    { value: 'LPC- HIPÓDROMOS', label: 'LPC — Hipódromos' },
+    { value: 'LPC- PARQUES DE ATRACCIONES', label: 'LPC — Parques de atracciones' },
+    { value: 'LPC- SALAS DE FIESTA', label: 'LPC — Salas de fiesta' },
+    { value: 'LPC- DISCOTECAS', label: 'LPC — Discotecas' },
+    { value: 'LPC- SALAS DE JUEGOS DE AZAR', label: 'LPC — Salas de juegos de azar' },
+    { value: 'LPC- ESTADIOS Y PABELLONES DEPORTIVOS', label: 'LPC — Estadios/Pabellones' },
+    { value: 'LPC- CANODROMOS', label: 'LPC — Canódromos' },
+    { value: 'LPC- PARQUES ACUATICOS', label: 'LPC — Parques acuáticos' },
+    { value: 'LPC- FERIAS FIJAS', label: 'LPC — Ferias fijas' },
+    { value: 'LPC- BINGOS', label: 'LPC — Bingos' },
+    { value: 'LPC- CIRCOS', label: 'LPC — Circos' },
+  ],
+  lpc_reun: [
+    { value: 'LPC- ESTABLECIMIENTOS COMERCIALES', label: 'LPC — Establ. comerciales' },
+    { value: 'LPC- AGRUP. ESTAB. EN CENTROS COMERCIALES', label: 'LPC — Agrup. centros comerciales' },
+    { value: 'LPC- SALAS DE CONFERENCIAS Y CONGRESOS', label: 'LPC — Salas conferencias' },
+    { value: 'LPC- CENTROS DE ENSEÑANZA', label: 'LPC — Centros enseñanza' },
+    { value: 'LPC- OFICINAS CON PRESENCIA DE PÚBLICO', label: 'LPC — Oficinas con público' },
+    { value: 'LPC- HOSPITALES, CLÍNICAS, AMBUL., CENTROS SALUD', label: 'LPC — Hospitales/Clínicas' },
+    { value: 'LPC- CONSULTORIOS MÉDICOS', label: 'LPC — Consultorios médicos' },
+    { value: 'LPC- CLUBES SOCIALES Y DEPORTIVOS', label: 'LPC — Clubes sociales/deportivos' },
+    { value: 'LPC- GIMNASIOS', label: 'LPC — Gimnasios' },
+    { value: 'LPC- CASINOS', label: 'LPC — Casinos' },
+    { value: 'LPC- BIBLIOTECAS', label: 'LPC — Bibliotecas' },
+    { value: 'LPC- MUSEOS', label: 'LPC — Museos' },
+    { value: 'LPC- SALAS DE EXPOSICIONES', label: 'LPC — Salas de exposiciones' },
+    { value: 'LPC- CENTROS CULTURALES', label: 'LPC — Centros culturales' },
+    { value: 'LPC- ASILOS', label: 'LPC — Asilos' },
+    { value: 'LPC- GUARDERÍAS', label: 'LPC — Guarderías' },
+    { value: 'LPC- RESIDENCIAS DE ESTUDIANTES', label: 'LPC — Residencias estudiantes' },
+    { value: 'LPC- TEMPLOS', label: 'LPC — Templos' },
+    { value: 'LPC- ESTACIONES DE VIAJEROS', label: 'LPC — Estaciones de viajeros' },
+    { value: 'LPC- AEROPUERTOS', label: 'LPC — Aeropuertos' },
+  ],
+  lpc_otros: [
+    { value: 'LPC- OTROS', label: 'LPC — Otros' },
+    { value: 'LPC-OTROS LOCALES BD2/BD3/BD4', label: 'LPC — Otros BD2/BD3/BD4' },
+    { value: 'LPC- OTROS (OCUPACIÓN > 100)', label: 'LPC — Otros (ocupación >100)' },
+  ],
+  garaje_lpc: [
+    { value: 'GARAJE VENTILACIÓN FORZADA', label: 'Garaje ventilación forzada' },
+    { value: 'LPC- ESTACIONAMIENTOS SUBTERRÁNEOS', label: 'LPC — Estacionamientos subterráneos' },
+  ],
+  mojado: [
+    { value: 'LOCAL MOJADO', label: 'Local mojado' },
+    { value: 'LOCALES HÚMEDOS', label: 'Locales húmedos' },
+  ],
+  elevacion: [
+    { value: 'MÁQUINAS DE ELEVACIÓN Y TRANSPORTE', label: 'Máquinas de elevación y transporte' },
+  ],
+  caldeo: [
+    { value: 'CONDUCTORES AISLADOS PARA CALDEO', label: 'Conductores aislados para caldeo' },
+  ],
+  rotulos: [
+    { value: 'DESTINADAS A RÓTULOS LUMINOSOS', label: 'Rótulos luminosos' },
+  ],
+  local_esp: [
+    { value: 'BOMBAS DE EXTRACCIÓN O ELEVACIÓN DE AGUA', label: 'Bombas extracción/elevación agua' },
+    { value: 'LOCALES POLVORIENTOS', label: 'Locales polvorientos' },
+    { value: 'LOCALES CON RIESGO DE CORROSIÓN', label: 'Locales con riesgo de corrosión' },
+    { value: 'LOCAL CON RIESGO INCENDIO O EXPLOSIÓN, NO GARAJE', label: 'Local riesgo incendio/explosión' },
+    { value: 'QUIROFANOS Y SALAS DE INTERVENCION', label: 'Quirófanos y salas de intervención' },
+    { value: 'PISCINAS', label: 'Piscinas' },
+    { value: 'FUENTES', label: 'Fuentes' },
+    { value: 'INSTALACIONES QUE UTILICEN TENSIONES ESPECIALES', label: 'Tensiones especiales' },
+    { value: 'CERCAS ELÉCTRICAS', label: 'Cercas eléctricas' },
+    { value: 'ALUMBRADO EXTERIOR PÚBLICO', label: 'Alumbrado exterior público' },
+    { value: 'ALUMBRADO EXTERIOR PRIVADO', label: 'Alumbrado exterior privado' },
+    { value: 'MOBILIARIO URBANO', label: 'Mobiliario urbano' },
+  ],
+  temporal_lpc: [
+    { value: 'LPC- OTROS', label: 'LPC — Otros' },
+  ],
+};
+
+// Fallback: todos los tipos CIE (para instalaciones sin categoría wizard)
+const ALL_CIE_TYPES: Array<{ value: string; label: string }> = Object.values(WIZARD_TO_CIE_TYPES).flat()
+  .filter((v, i, arr) => arr.findIndex((x) => x.value === v.value) === i)
+  .concat({ value: 'OTRAS NO CONTEMPLADAS', label: 'Otras no contempladas' });
 
 // ─── Potencias normalizadas REBT por tipo y tensión ──────────
 const POTENCIAS_MONO: Array<{ value: string; label: string }> = [
@@ -152,7 +258,7 @@ const FIELD_HELP: Record<string, string> = {
   tipoAcometida: 'Aérea o Subterránea, según información de la empresa distribuidora.',
   materialAcometida: 'Cu = Cobre, Al = Aluminio. Según tabla de referencia de la carpeta informativa.',
   gradoElectrificacion: 'Básica: ≤ 5.750 W (sup ≤ 160 m²). Elevada: ≤ 9.200 W (sup > 160 m² o con calefacción/AA).',
-  usoInstalacion: 'Vivienda, local comercial, oficina, nave industrial, garaje, etc.',
+  usoInstalacion: 'Se rellena automáticamente desde el tipo de instalación CIE seleccionado. Coincide con el campo "Uso" de la MTD.',
   superficieM2: 'Superficie útil del local o vivienda en metros cuadrados.',
   supplyVoltage: '230V para monofásica, 400V para trifásica.',
   esquemaDistribucion: 'TT = Neutro a tierra (habitual en España), TN-S, TN-C, IT.',
@@ -187,7 +293,7 @@ const FIELD_HELP: Record<string, string> = {
   presupuestoManoObra: 'Coste de mano de obra de la instalación.',
   presupuestoTotal: 'Total = Materiales + Mano de obra (sin IVA).',
   // CIE
-  tipoInstalacionCie: 'Código de tipo de instalación según nomenclatura CIE (79 tipos posibles).',
+  tipoInstalacionCie: 'Tipo de instalación según nomenclatura CIE oficial. Filtrado automáticamente según la categoría elegida en el wizard.',
   // Empresa
   empresaCategoria: 'IBTB = Instalador BT Categoría Básica. IBTE = Categoría Especialista.',
   empresaRegNum: 'Número de inscripción de la empresa en el Registro Industrial de la Comunidad Autónoma.',
@@ -343,6 +449,21 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
 
   const set = (field: string, value: any) => { setData((prev) => ({ ...prev, [field]: value })); setDirty(true); };
 
+  // Filtrar tipos CIE según categoría del wizard
+  const wizardCategory = (installation as any).installationType as string | undefined;
+  const cieTypeOptions = useMemo(() => {
+    if (wizardCategory && WIZARD_TO_CIE_TYPES[wizardCategory]) return WIZARD_TO_CIE_TYPES[wizardCategory];
+    return ALL_CIE_TYPES;
+  }, [wizardCategory]);
+
+  // Auto-preseleccionar si solo hay 1 subtipo
+  useEffect(() => {
+    if (cieTypeOptions.length === 1 && data.tipoInstalacionCie !== cieTypeOptions[0].value) {
+      setData((prev) => ({ ...prev, tipoInstalacionCie: cieTypeOptions[0].value, usoInstalacion: cieTypeOptions[0].value }));
+      setDirty(true);
+    }
+  }, [cieTypeOptions]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const rf = useMemo(() => getRequiredFields(data), [data]);
   const sv = useMemo(() => getSpecialValidations(data), [data]);
   const { filled, total, percent } = useMemo(() => {
@@ -464,8 +585,8 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
           <SelectField label="Actuación" field="tipoActuacion" value={data.tipoActuacion??''} onChange={set} options={TIPOS_ACTUACION} rf={rf} />
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <SelectField label="Tipo instalación (CIE)" field="tipoInstalacionCie" value={data.tipoInstalacionCie??''} onChange={set} options={TIPOS_INSTALACION_CIE} rf={rf} />
-          <TextField label="Uso de la instalación" field="usoInstalacion" value={data.usoInstalacion??''} onChange={set} placeholder="VIVIENDA, COMERCIO..." rf={rf} />
+          <SelectField label="Tipo instalación (CIE)" field="tipoInstalacionCie" value={data.tipoInstalacionCie??''} onChange={(f, v) => { set(f, v); set('usoInstalacion', v); }} options={cieTypeOptions} rf={rf} />
+          <TextField label="Uso de la instalación" field="usoInstalacion" value={data.usoInstalacion??''} onChange={set} placeholder="Se rellena automáticamente" rf={rf} />
           <TextField label="Aforo" field="aforo" value={data.aforo??''} onChange={set} placeholder="N/A" rf={rf} />
         </div>
         <div className="grid grid-cols-3 gap-3">
