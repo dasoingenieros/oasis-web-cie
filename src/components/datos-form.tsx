@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import type { Installation, UpdateInstallationDto, SupplyType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -369,6 +369,8 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [data, setData] = useState<Record<string, any>>({});
+  const [showStickyBar, setShowStickyBar] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const isCalculated = installation.status !== 'DRAFT';
   const isLocked = (field: string) => isCalculated && CALC_LOCKED_FIELDS.has(field);
@@ -482,6 +484,18 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
     }
   }, [computedGrado, isVivienda]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sticky bar: mostrar cuando la barra completitud sale de vista
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowStickyBar(!entry.isIntersecting),
+      { threshold: 0, rootMargin: '-56px 0px 0px 0px' }, // 56px = h-14 dashboard header
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const rf = useMemo(() => getRequiredFields(data), [data]);
   const sv = useMemo(() => getSpecialValidations(data), [data]);
   const { filled, total, percent } = useMemo(() => {
@@ -527,8 +541,8 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
         </div>
       )}
 
-      {/* BARRA COMPLETITUD */}
-      <div className="rounded-lg border border-surface-200 p-4 bg-white">
+      {/* BARRA COMPLETITUD (sentinel para sticky) */}
+      <div ref={sentinelRef} className="rounded-lg border border-surface-200 p-4 bg-white">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             {percent === 100 ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
@@ -540,6 +554,22 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
         {percent < 100 && <p className="text-xs text-surface-500 mt-2">Faltan {total - filled} campos obligatorios para generar el CIE. Los campos con <span className="text-red-600">*</span> son obligatorios.</p>}
         {sv.filter((s) => !s.ok).map((s) => <p key={s.field} className="text-xs text-amber-600 mt-1">⚠ {s.msg}</p>)}
       </div>
+
+      {/* CABECERA STICKY COMPACTA (aparece al hacer scroll) */}
+      {showStickyBar && (
+        <div className="sticky top-14 z-10 -mx-6 px-6 py-2.5 bg-white/95 backdrop-blur-sm border-b border-surface-200 shadow-sm flex items-center gap-4">
+          <span className="text-sm font-semibold text-surface-800 truncate min-w-0">{installation.titularName || 'Sin titular'}</span>
+          <div className="flex items-center gap-2 ml-auto shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-24 bg-surface-100 rounded-full h-1.5"><div className={`h-1.5 rounded-full transition-all ${percent === 100 ? 'bg-emerald-500' : percent > 50 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${percent}%` }} /></div>
+              <span className={`text-xs font-medium tabular-nums ${percent === 100 ? 'text-emerald-600' : percent > 50 ? 'text-amber-600' : 'text-red-600'}`}>{percent}% — {filled}/{total}</span>
+            </div>
+            <Button type="button" size="sm" onClick={handleSave} disabled={isSaving || !dirty} className="h-7 text-xs px-3">
+              {isSaving ? <><Loader2 className="mr-1 h-3 w-3 animate-spin" />Guardando</> : saved ? <><CheckCircle2 className="mr-1 h-3 w-3 text-emerald-500" />Guardado</> : <><Save className="mr-1 h-3 w-3" />Guardar</>}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* BANNER TIPO DE INSTALACIÓN */}
       {(installation as any).installationType && (() => {
