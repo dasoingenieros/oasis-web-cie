@@ -15,7 +15,7 @@ const CALC_LOCKED_FIELDS = new Set([
   'seccionDi', 'materialDi', 'longitudDi', 'numDerivaciones', 'aislamientoDi', 'tipoInstalacionDi',
   'seccionLineaEnlace', 'seccionCondProteccion',
   'igaNominal', 'igaPoderCorte', 'diferencialNominal', 'diferencialSensibilidad',
-  'potMaxAdmisible', 'gradoElectrificacion',
+  'potMaxAdmisible',
 ]);
 
 const CIE_REQUIRED_ALWAYS: string[] = [
@@ -228,6 +228,14 @@ function getPotenciasRebt(supplyType: string, voltage: string): Array<{ value: s
   return null;
 }
 
+// Auto-cálculo grado electrificación (ITC-BT-25): < 9.200W → BASICO, ≥ 9.200W → ELEVADO
+function computeGrado(supplyType: string, potMaxAdmisibleKw: number | string): string {
+  if (!supplyType?.startsWith('VIVIENDA_')) return '';
+  const potW = Number(potMaxAdmisibleKw) * 1000;
+  if (!potW || isNaN(potW)) return '';
+  return potW >= 9200 ? 'ELEVADO' : 'BASICO';
+}
+
 interface DatosFormProps { installation: Installation; isSaving: boolean; onSave: (data: UpdateInstallationDto) => Promise<void>; }
 
 function Section({ title, num, defaultOpen = true, children, badge }: { title: string; num: number; defaultOpen?: boolean; children: React.ReactNode; badge?: React.ReactNode; }) {
@@ -257,7 +265,7 @@ const FIELD_HELP: Record<string, string> = {
   puntoConexion: 'RBT = Red de Baja Tensión, CT = Centro de Transformación.',
   tipoAcometida: 'Aérea o Subterránea, según información de la empresa distribuidora.',
   materialAcometida: 'Cu = Cobre, Al = Aluminio. Según tabla de referencia de la carpeta informativa.',
-  gradoElectrificacion: 'Básica: ≤ 5.750 W (sup ≤ 160 m²). Elevada: ≤ 9.200 W (sup > 160 m² o con calefacción/AA).',
+  gradoElectrificacion: 'Se calcula automáticamente según ITC-BT-25. Básica: < 9.200 W. Elevada: ≥ 9.200 W.',
   usoInstalacion: 'Se rellena automáticamente desde el tipo de instalación CIE seleccionado. Coincide con el campo "Uso" de la MTD.',
   superficieM2: 'Superficie útil del local o vivienda en metros cuadrados.',
   supplyVoltage: '230V para monofásica, 400V para trifásica.',
@@ -464,6 +472,16 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
     }
   }, [cieTypeOptions]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-calcular grado electrificación desde potencia (solo viviendas)
+  const isVivienda = (data.supplyType ?? '').startsWith('VIVIENDA_');
+  const computedGrado = useMemo(() => computeGrado(data.supplyType, data.potMaxAdmisible), [data.supplyType, data.potMaxAdmisible]);
+  useEffect(() => {
+    if (isVivienda && computedGrado && data.gradoElectrificacion !== computedGrado) {
+      setData((prev) => ({ ...prev, gradoElectrificacion: computedGrado }));
+      setDirty(true);
+    }
+  }, [computedGrado, isVivienda]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const rf = useMemo(() => getRequiredFields(data), [data]);
   const sv = useMemo(() => getSpecialValidations(data), [data]);
   const { filled, total, percent } = useMemo(() => {
@@ -596,7 +614,16 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
           ) : (
             <NumberField label="P. máx. admisible" field="potMaxAdmisible" value={data.potMaxAdmisible??''} onChange={set} suffix="kW" step="0.01" rf={rf} locked={isLocked('potMaxAdmisible')} />
           )}
-          <TextField label="Grado electrificación" field="gradoElectrificacion" value={data.gradoElectrificacion??''} onChange={set} placeholder="BASICO / ELEVADO" rf={rf} locked={isLocked('gradoElectrificacion')} />
+          {isVivienda ? (
+            <div>
+              <Label className="text-xs text-surface-700 mb-1 block">Electrificación<HelpTip field="gradoElectrificacion" /></Label>
+              <div className={`h-9 rounded-md border px-3 text-sm flex items-center ${computedGrado ? 'border-surface-200 bg-surface-50 text-surface-700 font-medium' : 'border-surface-200 bg-surface-50 text-surface-400'}`}>
+                {computedGrado === 'ELEVADO' ? 'Elevada' : computedGrado === 'BASICO' ? 'Básica' : 'Seleccionar potencia...'}
+              </div>
+            </div>
+          ) : (
+            <div />
+          )}
         </div>
         {isModifAmpl && (
           <div className="grid grid-cols-3 gap-3 border-t border-surface-600 pt-3">
