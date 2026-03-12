@@ -67,15 +67,19 @@ export function useInstallation(id: string) {
     [id],
   );
 
-  // Run circuit calculation
+  // Run circuit calculation (read-only — does not modify circuit records)
   const calculate = useCallback(async (): Promise<CalculationResult> => {
     setIsCalculating(true);
     try {
       const result = await calculationsApi.calculate(id);
       setCalculation(result);
       // Refetch installation to get updated status
-      const updated = await installationsApi.get(id);
+      const [updated, circs] = await Promise.all([
+        installationsApi.get(id),
+        circuitsApi.list(id),
+      ]);
       setInstallation(updated);
+      setCircuits(circs);
       return result;
     } finally {
       setIsCalculating(false);

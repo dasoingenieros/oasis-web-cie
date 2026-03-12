@@ -76,6 +76,8 @@ export interface Installation {
   contractedPower?: number | null;
   supplyVoltage?: number | null;
   signerId?: string | null;
+  installerId?: string | null;
+  technicianId?: string | null;
   installerName?: string | null;
   installerNif?: string | null;
   installerRegNum?: string | null;
@@ -127,6 +129,8 @@ export interface CreateInstallationDto {
   potenciaPico?: number;
   modalidadAutoconsumo?: string;
   gradoElectrificacion?: string;
+  installerId?: string;
+  technicianId?: string;
 }
 
 export interface WaitlistDto {
@@ -166,6 +170,7 @@ export interface Circuit {
   shortCircuit?: number | null;
   compliance?: boolean | null;
   justification?: Record<string, unknown> | null;
+  isLighting?: boolean;
   maniobraType?: string | null;
   maniobraCalibreA?: number | null;
   maniobraExtra?: Record<string, unknown> | null;
@@ -187,6 +192,7 @@ export interface CreateCircuitDto {
   cosPhi?: number;
   tempCorrFactor?: number;
   groupCorrFactor?: number;
+  isLighting?: boolean;
   maniobraType?: string;
   maniobraCalibreA?: number;
   maniobraExtra?: Record<string, unknown>;
@@ -351,6 +357,62 @@ export interface InstallationSummary {
   totalCircuits: number;
   compliantCircuits: number;
   nonCompliantCircuits: number;
+}
+
+// ─── Installer & Technician ──────────────────────────────────
+
+export interface Installer {
+  id: string;
+  tenantId: string;
+  nombre: string;
+  nif?: string | null;
+  certNum?: string | null;
+  categoria?: string | null;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Technician {
+  id: string;
+  tenantId: string;
+  nombre: string;
+  nif?: string | null;
+  titulacion?: string | null;
+  numColegiado?: string | null;
+  colegioOficial?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  direccion?: string | null;
+  localidad?: string | null;
+  provincia?: string | null;
+  cp?: string | null;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateInstallerDto {
+  nombre: string;
+  nif?: string;
+  certNum?: string;
+  categoria?: string;
+  isDefault?: boolean;
+}
+
+export interface CreateTechnicianDto {
+  nombre: string;
+  nif?: string;
+  titulacion?: string;
+  numColegiado?: string;
+  colegioOficial?: string;
+  telefono?: string;
+  email?: string;
+  direccion?: string;
+  localidad?: string;
+  provincia?: string;
+  cp?: string;
+  isDefault?: boolean;
 }
 
 // ─── Helpers de formato ──────────────────────────────────────

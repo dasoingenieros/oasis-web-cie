@@ -1,12 +1,16 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { tenantApi } from '@/lib/api-client';
-import { User, Building2, Shield, Wrench, Save, Loader2, CheckCircle2, Pencil } from 'lucide-react';
+import { tenantApi, teamApi } from '@/lib/api-client';
+import type { Installer, Technician } from '@/lib/types';
+import {
+  User, Building2, Shield, Wrench, Save, Loader2, CheckCircle2,
+  Pencil, Trash2, Plus, Star, GraduationCap, X,
+} from 'lucide-react';
 
 const TIPOS_VIA = [
   'CALLE','ACCESO','ALAMEDA','AVENIDA','BAJADA','BULEVAR','CAMINO','CARRETERA',
@@ -28,19 +32,56 @@ const inputCls = 'h-9 rounded-md border border-surface-300 bg-white px-3 text-sm
 const selectCls = 'h-9 rounded-md border border-surface-300 bg-white px-2 text-sm w-full';
 const labelCls = 'text-xs text-surface-500 mb-1 block';
 
+// ─── Modal Component ────────────────────────────────────────────────────────
+
+function Modal({ open, onClose, title, children }: {
+  open: boolean; onClose: () => void; title: string; children: React.ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="relative w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-surface-900">{title}</h3>
+          <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-100">
+            <X className="h-5 w-5 text-surface-400" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ──────────────────────────────────────────────────────────────
+
 export default function ConfiguracionPage() {
   const { user } = useAuth();
 
+  // Empresa state
   const [empresa, setEmpresa] = useState<Record<string, any>>({});
   const [empresaDirty, setEmpresaDirty] = useState(false);
   const [empresaSaving, setEmpresaSaving] = useState(false);
   const [empresaSaved, setEmpresaSaved] = useState(false);
 
-  const [installers, setInstallers] = useState<any[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<Record<string, string>>({});
-  const [installerSaving, setInstallerSaving] = useState(false);
+  // Team state
+  const [installers, setInstallers] = useState<Installer[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [teamTab, setTeamTab] = useState<'installers' | 'technicians'>('installers');
 
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [modalType, setModalType] = useState<'installer' | 'technician'>('installer');
+  const [modalData, setModalData] = useState<Record<string, any>>({});
+  const [modalEditId, setModalEditId] = useState<string | null>(null);
+  const [modalSaving, setModalSaving] = useState(false);
+
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'installer' | 'technician'; id: string; nombre: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Load empresa
   useEffect(() => {
     tenantApi.getProfile()
       .then((data) => {
@@ -64,9 +105,13 @@ export default function ConfiguracionPage() {
       .catch(console.error);
   }, []);
 
-  useEffect(() => {
-    tenantApi.getInstallers().then(setInstallers).catch(console.error);
+  // Load team
+  const loadTeam = useCallback(() => {
+    teamApi.listInstallers().then(setInstallers).catch(console.error);
+    teamApi.listTechnicians().then(setTechnicians).catch(console.error);
   }, []);
+
+  useEffect(() => { loadTeam(); }, [loadTeam]);
 
   const setE = (k: string, v: string) => {
     setEmpresa((prev) => ({ ...prev, [k]: v }));
@@ -91,26 +136,98 @@ export default function ConfiguracionPage() {
     }
   };
 
-  const startEdit = (inst: any) => {
-    setEditingId(inst.id);
-    setEditData({
-      instaladorNombre: inst.instaladorNombre ?? inst.name ?? '',
-      instaladorNif: inst.instaladorNif ?? '',
-      instaladorCertNum: inst.instaladorCertNum ?? '',
-    });
+  // ─── Modal handlers ───────────────────────────────────────────────────────
+
+  const openCreateModal = (type: 'installer' | 'technician') => {
+    setModalType(type);
+    setModalMode('create');
+    setModalData(type === 'installer'
+      ? { nombre: '', nif: '', certNum: '', categoria: '', isDefault: false }
+      : { nombre: '', nif: '', titulacion: '', numColegiado: '', colegioOficial: '', telefono: '', email: '', direccion: '', localidad: '', provincia: '', cp: '', isDefault: false }
+    );
+    setModalEditId(null);
+    setModalOpen(true);
   };
 
-  const saveInstaller = async () => {
-    if (!editingId) return;
-    setInstallerSaving(true);
+  const openEditModal = (type: 'installer' | 'technician', item: Installer | Technician) => {
+    setModalType(type);
+    setModalMode('edit');
+    setModalEditId(item.id);
+    if (type === 'installer') {
+      const inst = item as Installer;
+      setModalData({ nombre: inst.nombre, nif: inst.nif ?? '', certNum: inst.certNum ?? '', categoria: inst.categoria ?? '', isDefault: inst.isDefault });
+    } else {
+      const tech = item as Technician;
+      setModalData({ nombre: tech.nombre, nif: tech.nif ?? '', titulacion: tech.titulacion ?? '', numColegiado: tech.numColegiado ?? '', colegioOficial: tech.colegioOficial ?? '', telefono: tech.telefono ?? '', email: tech.email ?? '', direccion: tech.direccion ?? '', localidad: tech.localidad ?? '', provincia: tech.provincia ?? '', cp: tech.cp ?? '', isDefault: tech.isDefault });
+    }
+    setModalOpen(true);
+  };
+
+  const saveModal = async () => {
+    setModalSaving(true);
     try {
-      const updated = await tenantApi.updateInstaller(editingId, editData);
-      setInstallers((prev) => prev.map((i) => (i.id === editingId ? updated : i)));
-      setEditingId(null);
+      const clean: Record<string, any> = {};
+      for (const [k, v] of Object.entries(modalData)) {
+        clean[k] = v === '' ? undefined : v;
+      }
+      // nombre is required
+      if (!clean.nombre) { setModalSaving(false); return; }
+
+      if (modalType === 'installer') {
+        if (modalMode === 'create') {
+          const created = await teamApi.createInstaller(clean as any);
+          setInstallers((prev) => clean.isDefault ? [created, ...prev.map((i) => ({ ...i, isDefault: false }))] : [...prev, created]);
+        } else {
+          const updated = await teamApi.updateInstaller(modalEditId!, clean as any);
+          setInstallers((prev) => prev.map((i) => i.id === modalEditId ? updated : clean.isDefault ? { ...i, isDefault: false } : i));
+        }
+      } else {
+        if (modalMode === 'create') {
+          const created = await teamApi.createTechnician(clean as any);
+          setTechnicians((prev) => clean.isDefault ? [created, ...prev.map((t) => ({ ...t, isDefault: false }))] : [...prev, created]);
+        } else {
+          const updated = await teamApi.updateTechnician(modalEditId!, clean as any);
+          setTechnicians((prev) => prev.map((t) => t.id === modalEditId ? updated : clean.isDefault ? { ...t, isDefault: false } : t));
+        }
+      }
+      setModalOpen(false);
     } catch (e) {
       console.error(e);
     } finally {
-      setInstallerSaving(false);
+      setModalSaving(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      if (deleteTarget.type === 'installer') {
+        await teamApi.deleteInstaller(deleteTarget.id);
+        setInstallers((prev) => prev.filter((i) => i.id !== deleteTarget.id));
+      } else {
+        await teamApi.deleteTechnician(deleteTarget.id);
+        setTechnicians((prev) => prev.filter((t) => t.id !== deleteTarget.id));
+      }
+      setDeleteTarget(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const setDefault = async (type: 'installer' | 'technician', id: string) => {
+    try {
+      if (type === 'installer') {
+        const updated = await teamApi.updateInstaller(id, { isDefault: true });
+        setInstallers((prev) => prev.map((i) => i.id === id ? updated : { ...i, isDefault: false }));
+      } else {
+        const updated = await teamApi.updateTechnician(id, { isDefault: true });
+        setTechnicians((prev) => prev.map((t) => t.id === id ? updated : { ...t, isDefault: false }));
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -118,7 +235,7 @@ export default function ConfiguracionPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-surface-900">Configuración</h1>
-        <p className="mt-0.5 text-sm text-surface-500">Gestiona tu cuenta, empresa e instaladores</p>
+        <p className="mt-0.5 text-sm text-surface-500">Gestiona tu cuenta, empresa y equipo</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -259,71 +376,283 @@ export default function ConfiguracionPage() {
         </CardContent>
       </Card>
 
-      {/* INSTALADORES */}
+      {/* EQUIPO: INSTALADORES Y TÉCNICOS */}
       <Card>
         <CardHeader className="flex flex-row items-center gap-3 space-y-0">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50">
             <Wrench className="h-4 w-4 text-violet-600" />
           </div>
           <div className="flex-1">
-            <CardTitle>Instaladores / Técnicos</CardTitle>
-            <p className="text-xs text-surface-500 mt-0.5">Personas que firman los certificados</p>
+            <CardTitle>Equipo</CardTitle>
+            <p className="text-xs text-surface-500 mt-0.5">Instaladores autorizados y técnicos que firman documentos</p>
           </div>
         </CardHeader>
         <CardContent>
-          {installers.length === 0 ? (
-            <p className="text-sm text-surface-400">No hay instaladores registrados.</p>
-          ) : (
+          {/* Tabs */}
+          <div className="mb-4 flex items-center gap-1 border-b border-surface-200">
+            <button
+              onClick={() => setTeamTab('installers')}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                teamTab === 'installers'
+                  ? 'border-violet-500 text-violet-700'
+                  : 'border-transparent text-surface-500 hover:text-surface-700'
+              }`}
+            >
+              <Wrench className="h-4 w-4" />
+              Instaladores
+              <Badge variant="secondary" className="ml-1 text-xs">{installers.length}</Badge>
+            </button>
+            <button
+              onClick={() => setTeamTab('technicians')}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                teamTab === 'technicians'
+                  ? 'border-violet-500 text-violet-700'
+                  : 'border-transparent text-surface-500 hover:text-surface-700'
+              }`}
+            >
+              <GraduationCap className="h-4 w-4" />
+              Técnicos
+              <Badge variant="secondary" className="ml-1 text-xs">{technicians.length}</Badge>
+            </button>
+          </div>
+
+          {/* Installers Tab */}
+          {teamTab === 'installers' && (
             <div className="space-y-3">
-              {installers.map((inst) => (
-                <div key={inst.id} className="rounded-lg border border-surface-200 p-3">
-                  {editingId === inst.id ? (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <label className={labelCls}>Nombre completo</label>
-                          <input className={inputCls} value={editData.instaladorNombre ?? ''} onChange={(e) => setEditData((p) => ({ ...p, instaladorNombre: e.target.value }))} />
-                        </div>
-                        <div>
-                          <label className={labelCls}>NIF</label>
-                          <input className={inputCls} value={editData.instaladorNif ?? ''} onChange={(e) => setEditData((p) => ({ ...p, instaladorNif: e.target.value }))} />
-                        </div>
-                        <div>
-                          <label className={labelCls}>Nº Certificado</label>
-                          <input className={inputCls} value={editData.instaladorCertNum ?? ''} onChange={(e) => setEditData((p) => ({ ...p, instaladorCertNum: e.target.value }))} />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={saveInstaller} disabled={installerSaving}>
-                          {installerSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Save className="mr-1 h-3 w-3" />Guardar</>}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>Cancelar</Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <p className="text-sm font-medium text-surface-900">{inst.instaladorNombre || inst.name}</p>
-                          <p className="text-xs text-surface-500">{inst.email}</p>
-                        </div>
-                        {inst.instaladorNif && <span className="text-xs text-surface-400">NIF: {inst.instaladorNif}</span>}
-                        {inst.instaladorCertNum && <span className="text-xs text-surface-400">Cert: {inst.instaladorCertNum}</span>}
-                        <Badge variant="secondary" className="text-xs">
-                          {inst.role === 'OPERATOR' ? 'Operador' : inst.role === 'SIGNER' ? 'Firmante' : 'Admin'}
-                        </Badge>
-                      </div>
-                      <Button size="sm" variant="ghost" onClick={() => startEdit(inst)}>
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  )}
+              {installers.length === 0 ? (
+                <p className="text-sm text-surface-400 py-4 text-center">No hay instaladores registrados.</p>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-surface-200">
+                  <table className="w-full text-sm">
+                    <thead className="bg-surface-50 text-left text-xs text-surface-500">
+                      <tr>
+                        <th className="px-3 py-2">Nombre</th>
+                        <th className="px-3 py-2">NIF</th>
+                        <th className="px-3 py-2">Nº Certificado</th>
+                        <th className="px-3 py-2">Categoría</th>
+                        <th className="px-3 py-2 text-center">Principal</th>
+                        <th className="px-3 py-2 w-20"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-100">
+                      {installers.map((inst) => (
+                        <tr key={inst.id} className="hover:bg-surface-50">
+                          <td className="px-3 py-2.5 font-medium text-surface-900">{inst.nombre}</td>
+                          <td className="px-3 py-2.5 text-surface-600">{inst.nif || '—'}</td>
+                          <td className="px-3 py-2.5 text-surface-600">{inst.certNum || '—'}</td>
+                          <td className="px-3 py-2.5 text-surface-600">{inst.categoria || '—'}</td>
+                          <td className="px-3 py-2.5 text-center">
+                            {inst.isDefault ? (
+                              <Star className="mx-auto h-4 w-4 fill-amber-400 text-amber-400" />
+                            ) : (
+                              <button onClick={() => setDefault('installer', inst.id)} className="mx-auto block rounded p-0.5 hover:bg-amber-50" title="Marcar como principal">
+                                <Star className="h-4 w-4 text-surface-300 hover:text-amber-400" />
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => openEditModal('installer', inst)} className="rounded p-1 hover:bg-surface-100" title="Editar">
+                                <Pencil className="h-3.5 w-3.5 text-surface-400" />
+                              </button>
+                              <button onClick={() => setDeleteTarget({ type: 'installer', id: inst.id, nombre: inst.nombre })} className="rounded p-1 hover:bg-red-50" title="Eliminar">
+                                <Trash2 className="h-3.5 w-3.5 text-surface-400 hover:text-red-500" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
+              )}
+              <Button size="sm" variant="outline" onClick={() => openCreateModal('installer')}>
+                <Plus className="mr-2 h-3.5 w-3.5" />Añadir instalador
+              </Button>
+            </div>
+          )}
+
+          {/* Technicians Tab */}
+          {teamTab === 'technicians' && (
+            <div className="space-y-3">
+              {technicians.length === 0 ? (
+                <p className="text-sm text-surface-400 py-4 text-center">No hay técnicos registrados.</p>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-surface-200">
+                  <table className="w-full text-sm">
+                    <thead className="bg-surface-50 text-left text-xs text-surface-500">
+                      <tr>
+                        <th className="px-3 py-2">Nombre</th>
+                        <th className="px-3 py-2">NIF</th>
+                        <th className="px-3 py-2">Titulación</th>
+                        <th className="px-3 py-2">Nº Colegiado</th>
+                        <th className="px-3 py-2">Colegio</th>
+                        <th className="px-3 py-2 text-center">Principal</th>
+                        <th className="px-3 py-2 w-20"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-100">
+                      {technicians.map((tech) => (
+                        <tr key={tech.id} className="hover:bg-surface-50">
+                          <td className="px-3 py-2.5 font-medium text-surface-900">{tech.nombre}</td>
+                          <td className="px-3 py-2.5 text-surface-600">{tech.nif || '—'}</td>
+                          <td className="px-3 py-2.5 text-surface-600">{tech.titulacion || '—'}</td>
+                          <td className="px-3 py-2.5 text-surface-600">{tech.numColegiado || '—'}</td>
+                          <td className="px-3 py-2.5 text-surface-600">{tech.colegioOficial || '—'}</td>
+                          <td className="px-3 py-2.5 text-center">
+                            {tech.isDefault ? (
+                              <Star className="mx-auto h-4 w-4 fill-amber-400 text-amber-400" />
+                            ) : (
+                              <button onClick={() => setDefault('technician', tech.id)} className="mx-auto block rounded p-0.5 hover:bg-amber-50" title="Marcar como principal">
+                                <Star className="h-4 w-4 text-surface-300 hover:text-amber-400" />
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => openEditModal('technician', tech)} className="rounded p-1 hover:bg-surface-100" title="Editar">
+                                <Pencil className="h-3.5 w-3.5 text-surface-400" />
+                              </button>
+                              <button onClick={() => setDeleteTarget({ type: 'technician', id: tech.id, nombre: tech.nombre })} className="rounded p-1 hover:bg-red-50" title="Eliminar">
+                                <Trash2 className="h-3.5 w-3.5 text-surface-400 hover:text-red-500" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <Button size="sm" variant="outline" onClick={() => openCreateModal('technician')}>
+                <Plus className="mr-2 h-3.5 w-3.5" />Añadir técnico
+              </Button>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* ─── Create/Edit Modal ─────────────────────────────────────── */}
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={
+          modalMode === 'create'
+            ? (modalType === 'installer' ? 'Nuevo instalador' : 'Nuevo técnico')
+            : (modalType === 'installer' ? 'Editar instalador' : 'Editar técnico')
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className={labelCls}>Nombre completo *</label>
+            <input className={inputCls} value={modalData.nombre ?? ''} onChange={(e) => setModalData((p) => ({ ...p, nombre: e.target.value }))} placeholder="Nombre y apellidos" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>NIF</label>
+              <input className={inputCls} value={modalData.nif ?? ''} onChange={(e) => setModalData((p) => ({ ...p, nif: e.target.value }))} placeholder="12345678A" />
+            </div>
+            {modalType === 'installer' ? (
+              <div>
+                <label className={labelCls}>Nº Certificado</label>
+                <input className={inputCls} value={modalData.certNum ?? ''} onChange={(e) => setModalData((p) => ({ ...p, certNum: e.target.value }))} />
+              </div>
+            ) : (
+              <div>
+                <label className={labelCls}>Nº Colegiado</label>
+                <input className={inputCls} value={modalData.numColegiado ?? ''} onChange={(e) => setModalData((p) => ({ ...p, numColegiado: e.target.value }))} />
+              </div>
+            )}
+          </div>
+          {modalType === 'installer' ? (
+            <div>
+              <label className={labelCls}>Categoría</label>
+              <select className={selectCls} value={modalData.categoria ?? ''} onChange={(e) => setModalData((p) => ({ ...p, categoria: e.target.value }))}>
+                <option value="">Seleccionar...</option>
+                {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className={labelCls}>Titulación</label>
+                <input className={inputCls} value={modalData.titulacion ?? ''} onChange={(e) => setModalData((p) => ({ ...p, titulacion: e.target.value }))} placeholder="Ing. Industrial, Ing. Telecomunicaciones..." />
+              </div>
+              <div>
+                <label className={labelCls}>Colegio Oficial</label>
+                <input className={inputCls} value={modalData.colegioOficial ?? ''} onChange={(e) => setModalData((p) => ({ ...p, colegioOficial: e.target.value }))} placeholder="COIIM, COITT..." />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Teléfono</label>
+                  <input className={inputCls} value={modalData.telefono ?? ''} onChange={(e) => setModalData((p) => ({ ...p, telefono: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelCls}>Email</label>
+                  <input className={inputCls} value={modalData.email ?? ''} onChange={(e) => setModalData((p) => ({ ...p, email: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Dirección</label>
+                <input className={inputCls} value={modalData.direccion ?? ''} onChange={(e) => setModalData((p) => ({ ...p, direccion: e.target.value }))} placeholder="C/ Ejemplo, 1" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className={labelCls}>Localidad</label>
+                  <input className={inputCls} value={modalData.localidad ?? ''} onChange={(e) => setModalData((p) => ({ ...p, localidad: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelCls}>Provincia</label>
+                  <input className={inputCls} value={modalData.provincia ?? ''} onChange={(e) => setModalData((p) => ({ ...p, provincia: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelCls}>C.P.</label>
+                  <input className={inputCls} value={modalData.cp ?? ''} onChange={(e) => setModalData((p) => ({ ...p, cp: e.target.value }))} placeholder="28001" />
+                </div>
+              </div>
+            </>
+          )}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="modal-default"
+              checked={modalData.isDefault ?? false}
+              onChange={(e) => setModalData((p) => ({ ...p, isDefault: e.target.checked }))}
+              className="h-4 w-4 rounded border-surface-300 text-violet-600 focus:ring-violet-500"
+            />
+            <label htmlFor="modal-default" className="text-sm text-surface-700">
+              Marcar como principal (se usará por defecto en nuevos expedientes)
+            </label>
+          </div>
+          <div className="flex items-center gap-3 pt-2 border-t border-surface-200">
+            <Button size="sm" onClick={saveModal} disabled={modalSaving || !modalData.nombre?.trim()}>
+              {modalSaving ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" />Guardando…</> :
+               <><Save className="mr-2 h-3 w-3" />{modalMode === 'create' ? 'Crear' : 'Guardar'}</>}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ─── Delete Confirmation Modal ─────────────────────────────── */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Confirmar eliminación"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-surface-600">
+            ¿Estás seguro de que quieres eliminar a <strong>{deleteTarget?.nombre}</strong>?
+          </p>
+          <div className="flex items-center gap-3">
+            <Button size="sm" variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Trash2 className="mr-2 h-3 w-3" />}
+              Eliminar
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

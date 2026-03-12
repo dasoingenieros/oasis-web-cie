@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { NavScrollProvider, useNavScroll } from '@/lib/nav-scroll-context';
 import { subscriptionsApi } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import type { UsageData } from '@/lib/types';
@@ -26,10 +27,11 @@ const nav = [
   { href: '/configuracion', label: 'Configuración', icon: Settings },
 ];
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+function DashboardInner({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { navHidden } = useNavScroll();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [usage, setUsage] = useState<UsageData | null>(null);
 
@@ -158,7 +160,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="sticky top-0 z-20 h-14 bg-white/80 backdrop-blur-sm border-b border-surface-200 flex items-center px-4 gap-3">
+        <header className={cn(
+          'sticky top-0 z-20 h-14 bg-white/80 backdrop-blur-sm border-b border-surface-200 flex items-center px-4 gap-3 transition-all duration-300',
+          navHidden && '-translate-y-full -mb-14',
+        )}>
           <button className="lg:hidden text-surface-600" onClick={() => setSidebarOpen(true)}>
             <Menu className="w-5 h-5" />
           </button>
@@ -176,5 +181,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <CookieBanner />
     </div>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <NavScrollProvider>
+      <DashboardInner>{children}</DashboardInner>
+    </NavScrollProvider>
   );
 }

@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import type { Installation, UpdateInstallationDto, SupplyType } from '@/lib/types';
+import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import type { Installation, UpdateInstallationDto, SupplyType, Installer, Technician } from '@/lib/types';
+import { teamApi } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Save, Loader2, CheckCircle2, ChevronDown, ChevronRight, AlertTriangle, Lock, HelpCircle, Info } from 'lucide-react';
+import { Save, Loader2, CheckCircle2, ChevronDown, ChevronRight, AlertTriangle, Lock, HelpCircle, Info, UserCheck, ExternalLink } from 'lucide-react';
 import { getInstallationType } from '@/lib/installation-types';
 
 // ─── Campos que intervienen en cálculos (bloqueados tras calcular) ───
@@ -12,7 +13,7 @@ const CALC_LOCKED_FIELDS = new Set([
   'supplyType', 'supplyVoltage', 'esquemaDistribucion',
   'seccionAcometida', 'materialAcometida',
   'seccionLga', 'materialLga', 'longitudLga', 'aislamientoLga',
-  'seccionDi', 'materialDi', 'longitudDi', 'numDerivaciones', 'aislamientoDi', 'tipoInstalacionDi',
+  'materialDi', 'longitudDi', 'numDerivaciones', 'aislamientoDi', 'tipoInstalacionDi',
   'seccionLineaEnlace', 'seccionCondProteccion',
   'igaNominal', 'igaPoderCorte', 'diferencialNominal', 'diferencialSensibilidad',
   'potMaxAdmisible',
@@ -40,7 +41,7 @@ function getRequiredFields(data: Record<string, any>): string[] {
   const fields = [...CIE_REQUIRED_ALWAYS];
   const nif = (data.titularNif ?? '').trim();
   if (nif && /^\d/.test(nif)) fields.push('titularApellido1');
-  if (data.tipoActuacion === 'MODIFICACION' || data.tipoActuacion === 'AMPLIACION') {
+  if (data.tipoActuacion === 'Modificación' || data.tipoActuacion === 'Ampliación con o sin modif.') {
     fields.push('numRegistroExistente', 'potOriginal');
   }
   return fields;
@@ -54,7 +55,8 @@ function getSpecialValidations(data: Record<string, any>): { field: string; ok: 
 }
 
 const TIPOS_VIA = ['CALLE','ACCESO','ACUEDUCTO','ALAMEDA','ALTO','AVENIDA','BAJADA','BARRANCO','BULEVAR','CALLEJA','CALLEJON','CAMINO','CARRERA','CARRETERA','COLONIA','COSTANILLA','CUESTA','FINCA','GLORIETA','GRAN VIA','PARAJE','PARCELA','PARQUE','PASADIZO','PASAJE','PASEO','PLAZA','PLAZUELA','POLIGONO','RINCON','RONDA','ROTONDA','SECTOR','SENDA','TRASERA','TRAVESIA'];
-const TIPOS_ACTUACION = [{ value: 'NUEVA', label: 'Nueva instalación' },{ value: 'MODIFICACION', label: 'Modificación' },{ value: 'AMPLIACION', label: 'Ampliación' }];
+const TIPOS_ACTUACION = [{ value: 'Nueva', label: 'Nueva' },{ value: 'Modificación', label: 'Modificación' },{ value: 'Ampliación con o sin modif.', label: 'Ampliación con o sin modif.' }];
+const ACTUACION_NORMALIZE: Record<string, string> = { NUEVA: 'Nueva', N: 'Nueva', MODIFICACION: 'Modificación', M: 'Modificación', AMPLIACION: 'Ampliación con o sin modif.', A: 'Ampliación con o sin modif.' };
 const PUNTOS_CONEXION = [{ value: 'RBT', label: 'RBT — Red de Baja Tensión' },{ value: 'CT', label: 'CT — Centro de Transformación' },{ value: 'IA', label: 'IA — Instalación Aislada' }];
 const TIPOS_ACOMETIDA = [{ value: 'AEREA', label: 'Aérea' },{ value: 'SUBTERRANEA', label: 'Subterránea' }];
 const MATERIALES = [{ value: 'CU', label: 'Cobre (Cu)' },{ value: 'AL', label: 'Aluminio (Al)' }];
@@ -236,7 +238,9 @@ function computeGrado(supplyType: string, potMaxAdmisibleKw: number | string): s
   return potW >= 9200 ? 'ELEVADO' : 'BASICO';
 }
 
-interface DatosFormProps { installation: Installation; isSaving: boolean; onSave: (data: UpdateInstallationDto) => Promise<void>; }
+export interface DatosFormState { percent: number; filled: number; total: number; dirty: boolean; }
+export interface DatosFormHandle { save: () => Promise<void>; }
+interface DatosFormProps { installation: Installation; isSaving: boolean; onSave: (data: UpdateInstallationDto) => Promise<void>; onStateChange?: (state: DatosFormState) => void; }
 
 function Section({ title, num, defaultOpen = true, children, badge }: { title: string; num: number; defaultOpen?: boolean; children: React.ReactNode; badge?: React.ReactNode; }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -365,12 +369,31 @@ function DireccionFields({ prefix, data, onChange, rf }: { prefix: string; data:
 
 // ─── Componente principal ─────────────────────────────────────
 
-export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
+export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function DatosForm({ installation, isSaving, onSave, onStateChange }, ref) {
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [data, setData] = useState<Record<string, any>>({});
-  const [showStickyBar, setShowStickyBar] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Team: installers & technicians
+  const [installers, setInstallers] = useState<Installer[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  useEffect(() => {
+    teamApi.listInstallers().then((list) => {
+      setInstallers(list);
+      // Auto-select default or single installer if no installerId set yet
+      setData((prev) => {
+        if (prev.installerId || prev.tipoAutor === 'TECNICO') return prev;
+        const def = list.find((i) => i.isDefault) || (list.length === 1 ? list[0] : null);
+        if (!def) return prev;
+        return {
+          ...prev, installerId: def.id,
+          instaladorNombre: def.nombre, instaladorNif: def.nif ?? prev.instaladorNif,
+          instaladorCertNum: def.certNum ?? prev.instaladorCertNum,
+        };
+      });
+    }).catch(console.error);
+    teamApi.listTechnicians().then(setTechnicians).catch(console.error);
+  }, []);
 
   const isCalculated = installation.status !== 'DRAFT';
   const isLocked = (field: string) => isCalculated && CALC_LOCKED_FIELDS.has(field);
@@ -380,6 +403,8 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
     setData({
       // Autor memoria
       tipoAutor: i.tipoAutor??'INSTALADOR',
+      installerId: i.installerId??'',
+      technicianId: i.technicianId??'',
       // Titular
       titularNif: i.titularNif??'', titularNombre: i.titularNombre??i.titularName??'',
       titularApellido1: i.titularApellido1??'', titularApellido2: i.titularApellido2??'',
@@ -400,7 +425,7 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
       contadorUbicacion: i.contadorUbicacion??'',
       // Datos técnicos
       supplyType: i.supplyType??'VIVIENDA_BASICA', supplyVoltage: String(i.supplyVoltage??230),
-      tipoActuacion: i.tipoActuacion??'NUEVA', usoInstalacion: i.usoInstalacion??'', aforo: i.aforo??'N/A',
+      tipoActuacion: ACTUACION_NORMALIZE[i.tipoActuacion] ?? i.tipoActuacion ?? 'Nueva', usoInstalacion: i.usoInstalacion??'', aforo: i.aforo??'N/A',
       tipoInstalacionCie: i.tipoInstalacionCie??'',
       gradoElectrificacion: i.gradoElectrificacion??'',
       temporalidad: i.temporalidad??'',
@@ -484,18 +509,6 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
     }
   }, [computedGrado, isVivienda]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sticky bar: mostrar cuando la barra completitud sale de vista
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowStickyBar(!entry.isIntersecting),
-      { threshold: 0, rootMargin: '-56px 0px 0px 0px' }, // 56px = h-14 dashboard header
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
   const rf = useMemo(() => getRequiredFields(data), [data]);
   const sv = useMemo(() => getSpecialValidations(data), [data]);
   const { filled, total, percent } = useMemo(() => {
@@ -524,9 +537,19 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
     setDirty(false); setSaved(true); setTimeout(() => setSaved(false), 2000);
   };
 
+  // Expose save method via ref
+  const handleSaveRef = useRef(handleSave);
+  handleSaveRef.current = handleSave;
+  useImperativeHandle(ref, () => ({ save: () => handleSaveRef.current() }), []);
+
+  // Notify parent of state changes
+  useEffect(() => {
+    onStateChange?.({ percent, filled, total, dirty });
+  }, [percent, filled, total, dirty]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const telTH = !(data.titularTelefono || data.titularMovil);
   const telEH = !(data.empresaTelefono || data.empresaMovil);
-  const isModifAmpl = data.tipoActuacion === 'MODIFICACION' || data.tipoActuacion === 'AMPLIACION';
+  const isModifAmpl = data.tipoActuacion === 'Modificación' || data.tipoActuacion === 'Ampliación con o sin modif.';
 
   return (
     <div className="space-y-4">
@@ -541,8 +564,8 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
         </div>
       )}
 
-      {/* BARRA COMPLETITUD (sentinel para sticky) */}
-      <div ref={sentinelRef} className="rounded-lg border border-surface-200 p-4 bg-white">
+      {/* BARRA COMPLETITUD */}
+      <div className="rounded-lg border border-surface-200 p-4 bg-white">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             {percent === 100 ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
@@ -554,25 +577,6 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
         {percent < 100 && <p className="text-xs text-surface-500 mt-2">Faltan {total - filled} campos obligatorios para generar el CIE. Los campos con <span className="text-red-600">*</span> son obligatorios.</p>}
         {sv.filter((s) => !s.ok).map((s) => <p key={s.field} className="text-xs text-amber-600 mt-1">⚠ {s.msg}</p>)}
       </div>
-
-      {/* CABECERA STICKY COMPACTA (aparece al hacer scroll, debajo de las pestañas sticky) */}
-      {showStickyBar && (
-        <div className="sticky top-[5.75rem] z-10 -mx-6 px-6 py-2.5 bg-white/95 backdrop-blur-sm border-b border-surface-200 shadow-sm flex items-center gap-4">
-          <span className="text-sm font-semibold text-surface-800 truncate min-w-0">
-            {installation.titularName || 'Sin titular'}
-            {(() => { const st = (installation as any).supplyType; const labels: Record<string, string> = { VIVIENDA_BASICA: 'Vivienda básica', VIVIENDA_ELEVADA: 'Vivienda elevada', IRVE: 'IRVE', LOCAL_COMERCIAL: 'Local comercial' }; const lbl = labels[st] || getInstallationType((installation as any).installationType)?.name; return lbl ? <span className="text-surface-500 font-normal"> — {lbl}</span> : null; })()}
-          </span>
-          <div className="flex items-center gap-2 ml-auto shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-24 bg-surface-100 rounded-full h-1.5"><div className={`h-1.5 rounded-full transition-all ${percent === 100 ? 'bg-emerald-500' : percent > 50 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${percent}%` }} /></div>
-              <span className={`text-xs font-medium tabular-nums ${percent === 100 ? 'text-emerald-600' : percent > 50 ? 'text-amber-600' : 'text-red-600'}`}>{percent}% — {filled}/{total}</span>
-            </div>
-            <Button type="button" size="sm" onClick={handleSave} disabled={isSaving || !dirty} className="h-7 text-xs px-3">
-              {isSaving ? <><Loader2 className="mr-1 h-3 w-3 animate-spin" />Guardando</> : saved ? <><CheckCircle2 className="mr-1 h-3 w-3 text-emerald-500" />Guardado</> : <><Save className="mr-1 h-3 w-3" />Guardar</>}
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* BANNER TIPO DE INSTALACIÓN */}
       {(installation as any).installationType && (() => {
@@ -589,7 +593,145 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
 
       {/* 1. AUTOR DE LA MEMORIA */}
       <Section title="Autor de la Memoria" num={1}>
-        <SelectField label="Autor" field="tipoAutor" value={data.tipoAutor??''} onChange={set} options={TIPOS_AUTOR} className="w-64" rf={rf} />
+        <SelectField label="Tipo de autor" field="tipoAutor" value={data.tipoAutor??''} onChange={(f, v) => {
+          set(f, v);
+          // Auto-select default or single member when switching
+          if (v === 'INSTALADOR') {
+            const def = installers.find((i) => i.isDefault) || (installers.length === 1 ? installers[0] : null);
+            if (def) {
+              setData((prev) => ({
+                ...prev, tipoAutor: v, installerId: def.id, technicianId: '',
+                instaladorNombre: def.nombre, instaladorNif: def.nif ?? '', instaladorCertNum: def.certNum ?? '',
+              }));
+            } else {
+              setData((prev) => ({ ...prev, tipoAutor: v, installerId: '', technicianId: '' }));
+            }
+          } else if (v === 'TECNICO') {
+            const def = technicians.find((t) => t.isDefault) || (technicians.length === 1 ? technicians[0] : null);
+            if (def) {
+              setData((prev) => ({ ...prev, tipoAutor: v, technicianId: def.id, installerId: '' }));
+            } else {
+              setData((prev) => ({ ...prev, tipoAutor: v, technicianId: '', installerId: '' }));
+            }
+          }
+          setDirty(true);
+        }} options={TIPOS_AUTOR} className="w-64" rf={rf} />
+
+        {/* INSTALADOR path */}
+        {(data.tipoAutor ?? 'INSTALADOR') === 'INSTALADOR' && (
+          <>
+            {installers.length === 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-center gap-2 text-sm text-amber-700">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>No hay instaladores en tu equipo.</span>
+                <a href="/configuracion" className="inline-flex items-center gap-1 text-amber-800 underline font-medium">
+                  Añadir en Configuración <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
+            {installers.length > 1 && (
+              <div>
+                <Label className="text-xs text-surface-700 mb-1 block">Seleccionar instalador</Label>
+                <select
+                  className="h-9 rounded-md border border-surface-300 bg-white px-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  value={data.installerId ?? ''}
+                  onChange={(e) => {
+                    const sel = installers.find((i) => i.id === e.target.value);
+                    if (sel) {
+                      setData((prev) => ({
+                        ...prev, installerId: sel.id,
+                        instaladorNombre: sel.nombre, instaladorNif: sel.nif ?? '', instaladorCertNum: sel.certNum ?? '',
+                      }));
+                    } else {
+                      setData((prev) => ({ ...prev, installerId: '', instaladorNombre: '', instaladorNif: '', instaladorCertNum: '' }));
+                    }
+                    setDirty(true);
+                  }}
+                >
+                  <option value="">Seleccionar...</option>
+                  {installers.map((i) => (
+                    <option key={i.id} value={i.id}>{i.nombre}{i.isDefault ? ' (principal)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {data.installerId && (() => {
+              const sel = installers.find((i) => i.id === data.installerId);
+              if (!sel) return null;
+              return (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-1">
+                  <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
+                    <UserCheck className="h-4 w-4" />
+                    {sel.nombre}
+                  </div>
+                  <div className="grid grid-cols-3 gap-x-4 text-xs text-blue-700">
+                    <span>NIF: {sel.nif || '—'}</span>
+                    <span>Categoría: {sel.categoria || '—'}</span>
+                    <span>Nº Certificado: {sel.certNum || '—'}</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </>
+        )}
+
+        {/* TECNICO path */}
+        {data.tipoAutor === 'TECNICO' && (
+          <>
+            {technicians.length === 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-center gap-2 text-sm text-amber-700">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>No hay técnicos en tu equipo.</span>
+                <a href="/configuracion" className="inline-flex items-center gap-1 text-amber-800 underline font-medium">
+                  Añadir en Configuración <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
+            {technicians.length > 1 && (
+              <div>
+                <Label className="text-xs text-surface-700 mb-1 block">Seleccionar técnico</Label>
+                <select
+                  className="h-9 rounded-md border border-surface-300 bg-white px-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  value={data.technicianId ?? ''}
+                  onChange={(e) => {
+                    const sel = technicians.find((t) => t.id === e.target.value);
+                    setData((prev) => ({ ...prev, technicianId: sel ? sel.id : '' }));
+                    setDirty(true);
+                  }}
+                >
+                  <option value="">Seleccionar...</option>
+                  {technicians.map((t) => (
+                    <option key={t.id} value={t.id}>{t.nombre}{t.isDefault ? ' (principal)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {data.technicianId && (() => {
+              const sel = technicians.find((t) => t.id === data.technicianId);
+              if (!sel) return null;
+              return (
+                <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 space-y-1">
+                  <div className="flex items-center gap-2 text-sm font-medium text-violet-800">
+                    <UserCheck className="h-4 w-4" />
+                    {sel.nombre}
+                  </div>
+                  <div className="grid grid-cols-3 gap-x-4 text-xs text-violet-700">
+                    <span>NIF: {sel.nif || '—'}</span>
+                    <span>Titulación: {sel.titulacion || '—'}</span>
+                    <span>Nº Colegiado: {sel.numColegiado || '—'}</span>
+                  </div>
+                  {(sel.colegioOficial || sel.telefono) && (
+                    <div className="grid grid-cols-3 gap-x-4 text-xs text-violet-700">
+                      <span>Colegio: {sel.colegioOficial || '—'}</span>
+                      <span>Teléfono: {sel.telefono || '—'}</span>
+                      <span>Email: {sel.email || '—'}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </>
+        )}
       </Section>
 
       {/* 2. TITULAR */}
@@ -753,11 +895,20 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
         <div className="grid grid-cols-3 gap-3">
           <SelectField label="Categoría" field="empresaCategoria" value={data.empresaCategoria??''} onChange={set} options={CATEGORIAS_EMPRESA} rf={rf} />
           <TextField label="Nº Registro Industrial" field="empresaRegNum" value={data.empresaRegNum??''} onChange={set} rf={rf} />
-          <TextField label="Nº Certificado instalador" field="instaladorCertNum" value={data.instaladorCertNum??''} onChange={set} rf={rf} />
+          <div>
+            <Label className="text-xs text-surface-700 mb-1 block">Nº Certificado instalador{rf.includes('instaladorCertNum') && <span className="text-red-600 ml-0.5">*</span>}{data.installerId && <span className="text-xs text-blue-500 ml-1">(Desde perfil)</span>}</Label>
+            <input className={`${inputCls} ${data.installerId ? 'bg-surface-50 text-surface-600' : ''}`} value={data.instaladorCertNum??''} onChange={(e) => !data.installerId && set('instaladorCertNum', e.target.value)} readOnly={!!data.installerId} />
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <TextField label="Nombre instalador (persona)" field="instaladorNombre" value={data.instaladorNombre??''} onChange={set} rf={rf} />
-          <TextField label="NIF instalador" field="instaladorNif" value={data.instaladorNif??''} onChange={set} rf={rf} />
+          <div>
+            <Label className="text-xs text-surface-700 mb-1 block">Nombre instalador (persona){rf.includes('instaladorNombre') && <span className="text-red-600 ml-0.5">*</span>}{data.installerId && <span className="text-xs text-blue-500 ml-1">(Desde perfil)</span>}</Label>
+            <input className={`${inputCls} ${data.installerId ? 'bg-surface-50 text-surface-600' : ''}`} value={data.instaladorNombre??''} onChange={(e) => !data.installerId && set('instaladorNombre', e.target.value)} readOnly={!!data.installerId} />
+          </div>
+          <div>
+            <Label className="text-xs text-surface-700 mb-1 block">NIF instalador{rf.includes('instaladorNif') && <span className="text-red-600 ml-0.5">*</span>}{data.installerId && <span className="text-xs text-blue-500 ml-1">(Desde perfil)</span>}</Label>
+            <input className={`${inputCls} ${data.installerId ? 'bg-surface-50 text-surface-600' : ''}`} value={data.instaladorNif??''} onChange={(e) => !data.installerId && set('instaladorNif', e.target.value)} readOnly={!!data.installerId} />
+          </div>
         </div>
         <DireccionFields prefix="empresa" data={data} onChange={set} rf={rf} />
         <div className="grid grid-cols-3 gap-3">
@@ -807,4 +958,4 @@ export function DatosForm({ installation, isSaving, onSave }: DatosFormProps) {
       </div>
     </div>
   );
-}
+});

@@ -5,7 +5,7 @@ import type {
   AuthResponse, Installation, CreateInstallationDto, UpdateInstallationDto,
   Circuit, CreateCircuitDto, CalculationResult, LoginDto, RegisterDto,
   Document, ElectricalPanel, SavePanelWithDifferentialsDto, UsageData,
-  WaitlistDto,
+  WaitlistDto, Installer, Technician, CreateInstallerDto, CreateTechnicianDto,
 } from './types';
 
 let accessToken: string | null = null;
@@ -134,6 +134,7 @@ export const panelsApi = {
   async get(installationId: string): Promise<ElectricalPanel | null> { try { const { data } = await api.get<ElectricalPanel>(`/installations/${installationId}/panel`); return data; } catch { return null; } },
   async save(installationId: string, dto: SavePanelWithDifferentialsDto): Promise<ElectricalPanel> { const { data } = await api.put<ElectricalPanel>(`/installations/${installationId}/panel`, dto); return data; },
   async createFromTemplate(installationId: string): Promise<ElectricalPanel> { const { data } = await api.post<ElectricalPanel>(`/installations/${installationId}/panel/template`); return data; },
+  async reset(installationId: string): Promise<void> { await api.delete(`/installations/${installationId}/panel/reset`); },
 };
 
 export const unifilarApi = {
@@ -163,6 +164,17 @@ export const consentApi = {
 
 export const waitlistApi = {
   async submit(dto: WaitlistDto): Promise<void> { await api.post('/waitlist', dto); },
+};
+
+export const teamApi = {
+  async listInstallers(): Promise<Installer[]> { const { data } = await api.get<Installer[]>('/team/installers'); return data; },
+  async createInstaller(dto: CreateInstallerDto): Promise<Installer> { const { data } = await api.post<Installer>('/team/installers', dto); return data; },
+  async updateInstaller(id: string, dto: Partial<CreateInstallerDto>): Promise<Installer> { const { data } = await api.put<Installer>(`/team/installers/${id}`, dto); return data; },
+  async deleteInstaller(id: string): Promise<void> { await api.delete(`/team/installers/${id}`); },
+  async listTechnicians(): Promise<Technician[]> { const { data } = await api.get<Technician[]>('/team/technicians'); return data; },
+  async createTechnician(dto: CreateTechnicianDto): Promise<Technician> { const { data } = await api.post<Technician>('/team/technicians', dto); return data; },
+  async updateTechnician(id: string, dto: Partial<CreateTechnicianDto>): Promise<Technician> { const { data } = await api.put<Technician>(`/team/technicians/${id}`, dto); return data; },
+  async deleteTechnician(id: string): Promise<void> { await api.delete(`/team/technicians/${id}`); },
 };
 
 export const tenantApi = {

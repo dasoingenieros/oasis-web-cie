@@ -303,8 +303,13 @@ export function generateFromAPI(
       const nConductors = circ.phases === 3 ? 4 : 2;
       const sectionStr = circ.calculatedSection ? `${nConductors}×${circ.calculatedSection}mm² ${circ.cableType}` : '';
       const insulStr = `${circ.insulationType || 'PVC'} · ${circ.length}m`;
-      const cdtStr = circ.voltageDrop !== undefined ? `CdT:${circ.voltageDrop.toFixed(1)}%` : '';
-      const powerStr = circ.power ? `${circ.power}W` : '';
+      const cdtStr = circ.voltageDrop != null ? `CdT:${circ.voltageDrop.toFixed(1)}%` : '';
+      // Extract curve from assignedBreaker (e.g. "16A curva C" → "C", "C16" → "C")
+      const breakerStr = circ.assignedBreaker || '';
+      const curveMatch = breakerStr.match(/curva\s+([A-D])/i) || breakerStr.match(/^([A-D])\d/);
+      const curve = curveMatch?.[1]?.toUpperCase() || 'C';
+      const piaStr = breakerCalibre ? `${breakerCalibre}A ${curve}` : '';
+      const powerStr = [circ.power ? `${circ.power}W` : '', piaStr].filter(Boolean).join(' · ');
       const circLabel = circ.code && circ.name.startsWith(circ.code)
         ? circ.name
         : `${circ.code || ''} ${circ.name}`.trim();

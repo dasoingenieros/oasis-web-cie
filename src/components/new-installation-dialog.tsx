@@ -434,9 +434,10 @@ function Step3({
   const selectMain = (type: 'nueva' | 'ampliacion' | 'modificacion') => {
     if (type === 'nueva') {
       update({ expedienteType: 'NUEVA' });
+    } else if (type === 'ampliacion') {
+      update({ expedienteType: 'AMPLIACION' });
     } else {
-      // Clear for sub-selection
-      update({ expedienteType: null });
+      update({ expedienteType: 'MODIFICACION' });
     }
   };
 

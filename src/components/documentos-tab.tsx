@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import { documentsApi } from '@/lib/api-client';
 import type { Document, CalculationResult } from '@/lib/types';
 import { DOCUMENT_TYPE_LABELS, formatDatetime, formatFileSize } from '@/lib/types';
@@ -17,13 +17,15 @@ import { CertificateConfirmationModal } from '@/components/legal/certificate-con
 import { consentApi } from '@/lib/api-client';
 import { LEGAL_VERSIONS } from '@/lib/legal-versions';
 
+export interface DocumentosTabHandle { generateMtd: () => void; generateCie: () => void; }
 interface DocumentosTabProps {
   installationId: string;
   calculation: CalculationResult | null;
   installation?: any;
+  onDocCountChange?: (count: number) => void;
 }
 
-export function DocumentosTab({ installationId, calculation, installation }: DocumentosTabProps) {
+export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>(function DocumentosTab({ installationId, calculation, installation, onDocCountChange }, ref) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<string | null>(null);
@@ -61,6 +63,9 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
   }, [installationId]);
 
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
+
+  // Notify parent of doc count changes
+  useEffect(() => { onDocCountChange?.(documents.length); }, [documents.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // MTD
   const handleGenerate = async (type: 'MEMORIA_TECNICA' | 'UNIFILAR') => {
@@ -126,6 +131,16 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
       await handleGenerateSolicitud(format);
     });
   };
+
+  // Expose generate methods via ref
+  const generateMtdFn = useRef(() => handleGenerate('MEMORIA_TECNICA'));
+  generateMtdFn.current = () => handleGenerate('MEMORIA_TECNICA');
+  const generateCieFn = useRef(() => requestCieGeneration('pdf'));
+  generateCieFn.current = () => requestCieGeneration('pdf');
+  useImperativeHandle(ref, () => ({
+    generateMtd: () => generateMtdFn.current(),
+    generateCie: () => generateCieFn.current(),
+  }), []);
 
   const handleConfirm = async () => {
     if (!confirmAction) return;
@@ -377,4 +392,4 @@ export function DocumentosTab({ installationId, calculation, installation }: Doc
       />
     </div>
   );
-}
+});

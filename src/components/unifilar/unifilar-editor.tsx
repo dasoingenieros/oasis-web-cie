@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect, useReducer, useMemo } from 'react';
-import { installationsApi, panelsApi, circuitsApi, unifilarApi } from '@/lib/api-client';
-import { generateFromAPI, generateViviendaDemo } from './layout-engine';
+import { installationsApi, panelsApi, circuitsApi, calculationsApi, unifilarApi } from '@/lib/api-client';
+import { generateFromAPI } from './layout-engine';
 import {
   UnifilarNode, UnifilarWire, UnifilarTemplate, UnifilarState, UnifilarAction,
   SYMBOL_TYPES, CATEGORIES, SymbolType,
@@ -627,7 +627,8 @@ export function UnifilarEditor({ installationId, initialTemplate, onClose, insta
     historyRef.current = [];
     historyPosRef.current = -1;
   }
-  const [state, rawDispatch] = useReducer(reducer, initialTemplate || generateViviendaDemo(), initState);
+  const emptyTemplate: UnifilarTemplate = { nodes: [], wires: [], meta: { name: '', version: 1 } };
+  const [state, rawDispatch] = useReducer(reducer, initialTemplate || emptyTemplate, initState);
   const pushHistory = useCallback((s: UnifilarState) => {
     if (isUndoRedoRef.current) return;
     const snap = { nodes: JSON.parse(JSON.stringify(s.nodes)), wires: JSON.parse(JSON.stringify(s.wires)) };
@@ -665,31 +666,47 @@ export function UnifilarEditor({ installationId, initialTemplate, onClose, insta
     setTimeout(() => { isUndoRedoRef.current = false; }, 0);
   }, [state]);
 
-  // Load from API — check saved layout first, then generate from data
+  // Load from API — ALWAYS generate from current circuits/differentials
+  const [hasSavedLayout, setHasSavedLayout] = useState(false);
   useEffect(() => {
     if (initialTemplate) return;
     (async () => {
       try {
         setLoading(true);
-        // Try loading saved layout first
-        const savedLayout = await unifilarApi.getLayout(installationId);
-        if (savedLayout?.layoutJson) {
-          dispatch({ type: 'LOAD_TEMPLATE', template: savedLayout.layoutJson });
-          setLoading(false);
-          return;
-        }
-        // No saved layout — generate from installation data
-        const [instRes, panelRes, circuitsRes] = await Promise.all([
+        // Check if saved layout exists (for "Cargar última versión" button)
+        unifilarApi.getLayout(installationId).then(saved => {
+          if (saved?.layoutJson) setHasSavedLayout(true);
+        }).catch(() => {});
+        // Always generate from current installation data
+        const [instRes, panelRes, circuitsRes, calcRes] = await Promise.all([
           installationsApi.get(installationId).then(d => ({ data: d })),
           panelsApi.get(installationId).then(d => ({ data: d })).catch(() => ({ data: null })),
           circuitsApi.list(installationId).then(d => ({ data: d })),
+          calculationsApi.getLatest(installationId),
         ]);
-        const tmpl = generateFromAPI(instRes.data, panelRes.data, circuitsRes.data);
+        // Merge calculation results into circuit data (engine stores results in snapshot, not on circuit records)
+        let circuits = circuitsRes.data;
+        if (calcRes?.resultSnapshot) {
+          const snap = calcRes.resultSnapshot as any;
+          const calcCircuits: any[] = snap.circuits || [];
+          const calcMap = new Map<string, any>();
+          for (const cr of calcCircuits) calcMap.set(cr.id, cr);
+          circuits = circuits.map((c: any) => {
+            const cr = calcMap.get(c.id);
+            if (!cr) return c;
+            return {
+              ...c,
+              calculatedSection: c.calculatedSection ?? cr.sectionMm2,
+              voltageDrop: c.voltageDrop ?? cr.voltageDropPct,
+              assignedBreaker: c.assignedBreaker ?? `${cr.breakerRatingA}A curva ${cr.breakerCurve}`,
+            };
+          });
+        }
+        const tmpl = generateFromAPI(instRes.data, panelRes.data, circuits);
         dispatch({ type: 'LOAD_TEMPLATE', template: tmpl });
       } catch (err: any) {
-        setLoadError(err.message || 'Error cargando datos');
-        // Fallback: demo template
-        dispatch({ type: 'LOAD_TEMPLATE', template: generateViviendaDemo() });
+        console.error('Unifilar API error:', err);
+        setLoadError(err.message || 'No se pudieron cargar los datos de la instalación');
       } finally {
         setLoading(false);
       }
@@ -721,22 +738,19 @@ export function UnifilarEditor({ installationId, initialTemplate, onClose, insta
     }
   }, [state, installationId]);
 
-  // Regenerate from data (overwrite saved)
-  const handleRegenerate = useCallback(async () => {
-    if (!confirm('¿Regenerar desde datos? Se perderán los cambios manuales del layout.')) return;
+  // Load last manually-edited version from DB
+  const handleLoadSaved = useCallback(async () => {
+    if (!confirm('¿Cargar la última versión editada manualmente? Se perderán los cambios actuales.')) return;
     try {
       setLoading(true);
-      const [instRes, panelRes, circuitsRes] = await Promise.all([
-        installationsApi.get(installationId).then(d => ({ data: d })),
-        panelsApi.get(installationId).then(d => ({ data: d })).catch(() => ({ data: null })),
-        circuitsApi.list(installationId).then(d => ({ data: d })),
-      ]);
-      const tmpl = generateFromAPI(instRes.data, panelRes.data, circuitsRes.data);
-      dispatch({ type: 'LOAD_TEMPLATE', template: tmpl });
-      // Save the regenerated layout
-      await unifilarApi.saveLayout(installationId, tmpl);
-    } catch (err: any) {
-      setLoadError(err.message || 'Error regenerando');
+      const savedLayout = await unifilarApi.getLayout(installationId);
+      if (savedLayout?.layoutJson) {
+        dispatch({ type: 'LOAD_TEMPLATE', template: savedLayout.layoutJson });
+      } else {
+        alert('No hay versión guardada disponible.');
+      }
+    } catch {
+      alert('Error al cargar la versión guardada.');
     } finally {
       setLoading(false);
     }
@@ -852,7 +866,7 @@ export function UnifilarEditor({ installationId, initialTemplate, onClose, insta
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: C.surface, borderBottom: `1px solid ${C.grid}` }}>
         <span style={{ fontSize: 11, fontFamily: FN, color: C.accent, fontWeight: 700, letterSpacing: 2, marginRight: 8 }}>◈ UNIFILAR</span>
         <span style={{ fontSize: 9, color: C.textDim, fontFamily: FN, background: C.accentDim, padding: '2px 6px', borderRadius: 3 }}>EDITABLE</span>
-        {loadError && <span style={{ fontSize: 9, color: C.orange, fontFamily: FN }}>⚠ Datos demo (API no disponible)</span>}
+        {loadError && <span style={{ fontSize: 9, color: C.orange, fontFamily: FN }}>⚠ {loadError}</span>}
         <div style={{ flex: 1 }} />
         <button onClick={undo} disabled={!canUndo} style={{ ...toolBt, opacity: canUndo ? 1 : 0.3 }}>Deshacer</button>
         <button onClick={redo} disabled={!canRedo} style={{ ...toolBt, opacity: canRedo ? 1 : 0.3 }}>Rehacer</button>
@@ -865,7 +879,7 @@ export function UnifilarEditor({ installationId, initialTemplate, onClose, insta
         <select value={pdfFormat} onChange={e => setPdfFormat(e.target.value as PdfFormat)} style={{ ...toolBt, padding: '4px 6px', width: 56 }}><option value="A4">A4</option><option value="A3">A3</option></select>
         <button onClick={handleExportPDF} disabled={exportingPdf} style={{ ...toolBt, color: C.green, borderColor: `${C.green}40` }}>{exportingPdf ? '⏳...' : '📄 PDF'}</button>
         <div style={{ flex: 1 }} />
-        <button onClick={handleRegenerate} style={{ ...toolBt, color: C.orange, borderColor: `${C.orange}40` }}>🔄 Regenerar</button>
+        {hasSavedLayout && <button onClick={handleLoadSaved} style={{ ...toolBt, color: C.orange, borderColor: `${C.orange}40` }}>📋 Cargar última versión editada</button>}
         <button onClick={handleManualSave} disabled={!state.isDirty} style={{ ...toolBt, color: state.isDirty ? C.green : C.textDim, borderColor: state.isDirty ? `${C.green}40` : C.grid }}>💾 Guardar</button>
         {onClose && <button onClick={handleClose} style={{ ...toolBt, color: '#ef4444', borderColor: '#ef444440', marginLeft: 8 }}>Cerrar</button>}
       </div>
