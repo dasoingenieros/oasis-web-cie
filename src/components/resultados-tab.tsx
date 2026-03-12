@@ -135,7 +135,7 @@ export function ResultadosTab({
   // Extraer resultados del motor y cruzar con circuitos de entrada
   const snapshot = calculation.resultSnapshot as any;
   const engineCircuits: EngineCircuitResult[] = snapshot?.circuits || [];
-  const inputCircuits = (calculation.inputSnapshot as any[]) || [];
+  const inputCircuits = (calculation.inputSnapshot as unknown as any[]) || [];
 
   // Merge: cruzar datos de entrada con resultados del motor por ID
   const merged: MergedCircuit[] = useMemo(() => {
@@ -419,11 +419,11 @@ function buildSummary(
   supplyResult?: any,
   installation?: any,
 ): InstallationSummary {
-  // P. máx. admisible: supplyResult (memoria) > installation (BD) > engineSummary > suma circuitos
+  // P. máx. admisible: supplyResult (memoria) > installation.potMaxAdmisible (BD)
+  // NUNCA usar suma de circuitos — eso NO es la potencia máx admisible
   const totalPower = supplyResult?.designPowerW
     ?? (installation?.potMaxAdmisible ? installation.potMaxAdmisible * 1000 : undefined)
-    ?? engineSummary?.totalPowerW
-    ?? merged.reduce((sum, c) => sum + (c.power || 0), 0);
+    ?? 0;
 
   // Sección D.I.: supplyResult (memoria) > installation (BD) > engineSummary > máx circuitos
   const maxSection = supplyResult?.di?.sectionMm2

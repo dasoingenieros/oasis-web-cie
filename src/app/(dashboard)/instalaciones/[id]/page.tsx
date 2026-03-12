@@ -84,10 +84,6 @@ function SupplyResultBanner({ result, panel }: { result: any; panel?: any }) {
           <span className="text-surface-500 text-xs">Diferenciales</span>
           <p className="font-medium text-xs">{diffDisplay}</p>
         </div>
-        <div>
-          <span className="text-surface-500 text-xs">I cálculo</span>
-          <p className="font-medium">{result.iga.nominalCurrentA} A</p>
-        </div>
       </div>
       {result.warnings && result.warnings.length > 0 && (
         <div className="mt-3 border-t border-surface-200 pt-2">
@@ -227,7 +223,8 @@ export default function InstallationDetailPage() {
 
   const handleCalculate = async (): Promise<boolean> => {
     try {
-      await Promise.all([calculate(), calculateSupply()]);
+      await calculate();
+      await calculateSupply();
       setCalcSuccess(true);
       setTimeout(() => setCalcSuccess(false), 3000);
       return true;

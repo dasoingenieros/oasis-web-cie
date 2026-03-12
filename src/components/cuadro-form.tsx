@@ -45,13 +45,13 @@ const DI_INSULATIONS = ['XLPE', 'PVC', 'EPR'];
 const DI_INSTALL_TYPES = ['TP', 'E.T.F.', 'E.T.C.', 'S.T.C.', 'F.D.P.', 'BANDJ.'];
 
 const LOAD_TYPES = [
-  { value: 'FUERZA', short: 'F', label: 'Fuerza', cdtLimit: 5 },
-  { value: 'ALUMBRADO', short: 'A', label: 'Alumbrado', cdtLimit: 3 },
-  { value: 'ALUMBRADO_EMERGENCIA', short: 'AE', label: 'Alumbrado emergencia', cdtLimit: 3 },
-  { value: 'MOTOR', short: 'M', label: 'Motor', cdtLimit: 5 },
-  { value: 'RESISTIVO', short: 'R', label: 'Resistivo', cdtLimit: 5 },
+  { value: 'FUERZA', short: 'Fuerza', label: 'Fuerza', cdtLimit: 5 },
+  { value: 'ALUMBRADO', short: 'Alumbrado', label: 'Alumbrado', cdtLimit: 3 },
+  { value: 'ALUMBRADO_EMERGENCIA', short: 'Alum. Emerg.', label: 'Alumbrado emergencia', cdtLimit: 3 },
+  { value: 'MOTOR', short: 'Motor', label: 'Motor', cdtLimit: 5 },
+  { value: 'RESISTIVO', short: 'Resistivo', label: 'Resistivo', cdtLimit: 5 },
   { value: 'IRVE', short: 'IRVE', label: 'IRVE', cdtLimit: 5 },
-  { value: 'DOMOTICA', short: 'D', label: 'Domótica', cdtLimit: 5 },
+  { value: 'DOMOTICA', short: 'Domótica', label: 'Domótica', cdtLimit: 5 },
 ] as const;
 
 function cdtLimitForLoadType(loadType: string): number {
@@ -107,13 +107,23 @@ function piaForICalc(iCalcA: number): number {
   return PIA_RATINGS.find((p) => p >= iCalcA) ?? PIA_RATINGS[PIA_RATINGS.length - 1]!;
 }
 
+const NORMALIZED_SECTIONS = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95, 120, 150, 185, 240];
+
+/** Conductividad γ (S·m/mm²) a temperatura de servicio del aislamiento.
+ *  70°C (H07V-K, H07V-U, H07Z1-K, PVC): CU=48, AL=30
+ *  90°C (RV-K, RZ1-K, EPR, XLPE):        CU=44, AL=28 */
+function getGamma(material: string, insulationType: string): number {
+  const is90C = ['RV-K', 'RZ1-K', 'EPR', 'XLPE'].includes(insulationType);
+  if (material === 'AL') return is90C ? 28 : 30;
+  return is90C ? 44 : 48;
+}
+
 /** CdT% con la sección del USUARIO (no la del motor).
  *  Mono: (2 × L × I × cosφ × 100) / (γ × S × V)
- *  Tri:  (√3 × L × I × cosφ × 100) / (γ × S × V)
- *  γ = 56 CU, 35 AL */
+ *  Tri:  (√3 × L × I × cosφ × 100) / (γ × S × V) */
 function calcUserCdtPct(row: CircuitRow, sectionMm2: number): number | null {
   if (sectionMm2 <= 0 || row.voltage <= 0 || row.length <= 0) return null;
-  const gamma = row.cableType === 'CU' ? 56 : 35;
+  const gamma = getGamma(row.cableType, row.insulationType);
   const factor = row.phases === 3 || row.voltage === 400 ? Math.sqrt(3) : 2;
   return (factor * row.length * row.iCalcA * row.cosPhi * 100) / (gamma * sectionMm2 * row.voltage);
 }
@@ -196,6 +206,7 @@ interface CircuitRow {
   isItcBt25: boolean;
   loadType: string;
   maniobraChain: ManiobraDevice[];
+  userSectionMm2?: number;
   resultSection?: string;
   resultSectionMm2?: number;
   resultCdtV?: number;
@@ -243,7 +254,7 @@ function circuitToRow(c: Circuit): CircuitRow {
 function emptyRow(order: number): CircuitRow {
   return {
     key: nextKey(), code: '', name: '', order, iCalcA: 16, voltage: 230, phases: 1, length: 15,
-    cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1,
+    cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1,
     tempCorrFactor: 1, groupCorrFactor: 1, installedPowerKw: '', isItcBt25: false, loadType: 'FUERZA', maniobraChain: [],
   };
 }
@@ -494,7 +505,12 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
 
   // ── Circuit row handlers
   const updateRow = useCallback((key: string, field: keyof CircuitRow, value: string | number | boolean) => {
-    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, [field]: value } : r)));
+    setRows((prev) => prev.map((r) => {
+      if (r.key !== key) return r;
+      const updated = { ...r, [field]: value };
+      if (field === 'iCalcA') updated.userSectionMm2 = sectionForPia(piaForICalc(Number(value)));
+      return updated;
+    }));
     setDirty(true);
   }, []);
 
@@ -575,10 +591,10 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
   const assignedKeys = useMemo(() => new Set(diffs.flatMap((d) => d.circuitKeys)), [diffs]);
   const unassignedRows = useMemo(() => rows.filter((r) => !assignedKeys.has(r.key)), [rows, assignedKeys]);
 
-  const totalPowerW = rows.reduce((sum, r) => sum + r.voltage * r.iCalcA, 0);
+  // P. máx. admisible: supplyResult > installation.potMaxAdmisible > derivada del IGA
   const displayMaxPowerW = supplyResult?.designPowerW
     ?? (installation?.potMaxAdmisible ? installation.potMaxAdmisible * 1000 : undefined)
-    ?? totalPowerW;
+    ?? calcMaxPowerW(iga.calibreA, iga.voltage);
 
   // ── Compliance counts (from calc results)
   const calcCompliance = useMemo(() => {
@@ -619,27 +635,16 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
         cableType: r.cableType, insulationType: r.insulationType, installMethod: r.installMethod,
         cosPhi: r.cosPhi, tempCorrFactor: r.tempCorrFactor, groupCorrFactor: r.groupCorrFactor,
         loadType: r.loadType,
-        maniobraType: r.maniobraChain.length > 0 ? r.maniobraChain[0].type : undefined,
-        maniobraCalibreA: r.maniobraChain.length > 0 ? r.maniobraChain[0].calibreA : undefined,
+        maniobraType: r.maniobraChain[0]?.type,
+        maniobraCalibreA: r.maniobraChain[0]?.calibreA,
         maniobraExtra: r.maniobraChain.length > 0 ? { chain: r.maniobraChain } : undefined,
       }));
 
-      // 3. Save circuits — get back IDs
-      const savedCircuits = await onSave(dtos);
+      // 3. Build key→order map so we can assign circuits to differentials by order
+      const keyToOrder = new Map<string, number>();
+      orderedKeys.forEach((k, i) => keyToOrder.set(k, i + 1));
 
-      // 4. Map old keys to new IDs (by order)
-      const keyToNewId = new Map<string, string>();
-      for (let i = 0; i < orderedKeys.length; i++) {
-        if (savedCircuits[i]) keyToNewId.set(orderedKeys[i], savedCircuits[i].id);
-      }
-
-      // 5. Save DI
-      await installationsApi.update(installationId, {
-        seccionDi: di.seccionDi, materialDi: di.materialDi, longitudDi: di.longitudDi,
-        aislamientoDi: di.aislamientoDi, tipoInstalacionDi: di.tipoInstalacionDi,
-      } as any);
-
-      // 6. Save panel + differentials with mapped IDs
+      // 4. Transactional save: circuits + installation + panel in a single request
       const panelDto: SavePanelWithDifferentialsDto = {
         panel: {
           igaCalibreA: iga.calibreA, igaCurve: iga.curve, igaPowerCutKa: iga.powerCutKa,
@@ -648,18 +653,39 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
         differentials: diffs.map((d) => ({
           id: d.id, name: d.name, order: d.order,
           calibreA: d.calibreA, sensitivityMa: d.sensitivityMa, type: d.type, poles: d.poles,
-          circuitIds: d.circuitKeys.map((k) => keyToNewId.get(k) ?? k),
+          // Use _order placeholders; backend resolves by circuit order after creation
+          circuitIds: d.circuitKeys.map((k) => `_order:${keyToOrder.get(k) ?? 0}`),
         })),
       };
-      const savedPanel = await panelsApi.save(installationId, panelDto);
 
-      // 7. Update local state with saved panel
-      setDiffs(savedPanel.differentials.map((d) => ({
-        localId: d.id, id: d.id, name: d.name, order: d.order,
-        calibreA: d.calibreA, sensitivityMa: d.sensitivityMa, type: d.type, poles: d.poles,
-        circuitKeys: d.circuits.map((c) => c.id),
-        isProtected: d.isProtected, protectionNote: d.protectionNote, expanded: true,
-      })));
+      const result = await panelsApi.saveAll(installationId, {
+        circuits: dtos,
+        panel: panelDto,
+        installationUpdates: {
+          seccionDi: di.seccionDi, materialDi: di.materialDi, longitudDi: di.longitudDi,
+          aislamientoDi: di.aislamientoDi, tipoInstalacionDi: di.tipoInstalacionDi,
+          potMaxAdmisible: calcMaxPowerW(iga.calibreA, iga.voltage) / 1000,
+          igaNominal: iga.calibreA,
+          igaPoderCorte: iga.powerCutKa,
+          supplyVoltage: iga.voltage,
+          diferencialNominal: diffs[0]?.calibreA ?? null,
+          diferencialSensibilidad: diffs[0]?.sensitivityMa ?? null,
+        },
+      });
+
+      // 5. Notify parent of new circuits
+      onSave(dtos).catch(() => {});
+
+      // 6. Update local state with saved panel
+      const savedPanel = result.panel;
+      if (savedPanel?.differentials) {
+        setDiffs(savedPanel.differentials.map((d: any) => ({
+          localId: d.id, id: d.id, name: d.name, order: d.order,
+          calibreA: d.calibreA, sensitivityMa: d.sensitivityMa, type: d.type, poles: d.poles,
+          circuitKeys: d.circuits.map((c: any) => c.id),
+          isProtected: d.isProtected, protectionNote: d.protectionNote, expanded: true,
+        })));
+      }
 
       setDirty(false);
       setSaved(true);
@@ -710,18 +736,18 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
             <tr className="border-b border-surface-200 bg-surface-50 text-left text-[11px]">
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-7">#</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-12">Cód.</th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 min-w-[60px]">Circuito</th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-14 text-center">Tipo</th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 min-w-[40px]">Circuito</th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-[105px] text-center">Tipo</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-14 text-right">P.Calc.<br/><span className="font-normal text-surface-400">kW</span></th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-[70px] text-center">V / Fases</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-14 text-center">I.Calc.<br/><span className="font-normal text-surface-400">A</span></th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-center">Sección</th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-center">S.Calc.</th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-center pr-0">Sección</th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-center pl-0">S.Calc.</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-14 text-center">Mat</th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-center">Aisl.</th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-[85px] text-center">Aisl.</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-center">Inst.</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-12">Long.<br/><span className="font-normal text-surface-400">m</span></th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-right">CdT<br/><span className="font-normal text-surface-400">%</span></th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-[100px] text-right">CdT%</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-12 text-center">PIA<br/><span className="font-normal text-surface-400">A</span></th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-10 text-center">Man.</th>
               {diffIdx === null && diffs.length > 0 && <th className="px-1.5 py-1.5 font-medium text-surface-700 w-24 text-center">Dif.</th>}
@@ -733,17 +759,18 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
               const powerW = row.voltage * row.iCalcA;
               const pCalcKw = (powerW / 1000).toFixed(2);
               const piaA = piaForICalc(row.iCalcA);
-              const sectionMm2 = sectionForPia(piaA);
+              const thermalMinSection = sectionForPia(piaA);
               const nCond = row.voltage === 400 ? 4 : 2;
-              const userSection = `${nCond}×${sectionMm2}`;
+              const effectiveSection = row.userSectionMm2 ?? thermalMinSection;
               const displayPia = row.resultPiaA ?? piaA;
               const hasCalcSection = row.resultSectionMm2 != null;
-              const sectionInsufficient = hasCalcSection && sectionMm2 < row.resultSectionMm2!;
+              const sectionInsufficient = hasCalcSection && effectiveSection < row.resultSectionMm2!;
+              const sectionBelowThermalMin = effectiveSection < thermalMinSection;
 
               const hasJustification = (row.resultJustification?.length ?? 0) > 0;
               const cdtLimit = cdtLimitForLoadType(row.loadType);
               // CdT con la sección del USUARIO (no la del motor)
-              const cdtPct = calcUserCdtPct(row, sectionMm2);
+              const cdtPct = calcUserCdtPct(row, effectiveSection);
               const cdtOk = cdtPct != null && cdtPct <= cdtLimit;
               const cdtDanger = cdtPct != null && cdtPct > cdtLimit;
 
@@ -778,7 +805,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                       <input value={row.name} onChange={(e) => updateRow(row.key, 'name', e.target.value)} className={`${inputCls} w-full`} placeholder="Nombre" />
                     </td>
                     <td className="px-1.5 py-1 text-center">
-                      <select value={row.loadType} onChange={(e) => updateRow(row.key, 'loadType', e.target.value)} className={`${selectCls} w-14 text-[10px]`} title={LOAD_TYPES.find((lt) => lt.value === row.loadType)?.label ?? row.loadType}>
+                      <select value={row.loadType} onChange={(e) => updateRow(row.key, 'loadType', e.target.value)} className={`${selectCls} w-[105px] text-[10px]`} title={LOAD_TYPES.find((lt) => lt.value === row.loadType)?.label ?? row.loadType}>
                         {LOAD_TYPES.map((lt) => <option key={lt.value} value={lt.value}>{lt.short}</option>)}
                       </select>
                     </td>
@@ -798,13 +825,16 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                         {I_CALC_VALUES.map((a) => <option key={a} value={a}>{a}</option>)}
                       </select>
                     </td>
-                    <td className="px-1.5 py-1 text-center">
-                      <span className={`text-xs tabular-nums inline-flex items-center gap-1 rounded px-1 py-0.5 ${hasCalcSection ? sectionInsufficient ? 'bg-red-100 text-red-700 font-medium' : 'bg-emerald-100 text-emerald-700 font-medium' : 'text-surface-500'}`}
-                        title={hasCalcSection ? sectionInsufficient ? `Sección insuficiente. Mínimo: ${row.resultSectionMm2}mm²` : 'Cumple' : undefined}>
-                        {userSection}
-                      </span>
+                    <td className="pl-1.5 pr-0 py-1 text-center">
+                      <select
+                        value={effectiveSection}
+                        onChange={(e) => updateRow(row.key, 'userSectionMm2', Number(e.target.value))}
+                        className={`${selectCls} w-16 text-[10px] ${sectionBelowThermalMin ? 'border-red-400 bg-red-50 text-red-700 font-medium' : sectionInsufficient ? 'border-red-400 bg-red-50 text-red-700 font-medium' : hasCalcSection ? 'border-emerald-300 bg-emerald-50 text-emerald-700 font-medium' : ''}`}
+                        title={sectionBelowThermalMin ? `Sección inferior a la mínima por criterio térmico (${thermalMinSection} mm²)` : sectionInsufficient ? `Sección insuficiente. Mínimo motor: ${row.resultSectionMm2} mm²` : hasCalcSection ? 'Cumple' : undefined}>
+                        {NORMALIZED_SECTIONS.map((s) => <option key={s} value={s}>{nCond}×{s}</option>)}
+                      </select>
                     </td>
-                    <td className="px-1.5 py-1 text-center">
+                    <td className="pl-0 pr-1.5 py-1 text-center">
                       <span className="text-xs tabular-nums text-surface-400">{row.resultSection ?? '—'}</span>
                     </td>
                     <td className="px-1.5 py-1 text-center">
@@ -813,7 +843,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                       </select>
                     </td>
                     <td className="px-1.5 py-1 text-center">
-                      <select value={row.insulationType} onChange={(e) => updateRow(row.key, 'insulationType', e.target.value)} className={`${selectCls} w-[90px]`}>
+                      <select value={row.insulationType} onChange={(e) => updateRow(row.key, 'insulationType', e.target.value)} className={`${selectCls} w-[85px]`}>
                         <option value="H07V-K">H07V-K</option><option value="H07V-U">H07V-U</option><option value="H07Z1-K">H07Z1-K</option>
                         <option value="RV-K">RV-K</option><option value="RZ1-K">RZ1-K</option><option value="EPR">EPR</option>
                       </select>
@@ -899,7 +929,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                               {MANIOBRA_DEVICE_TYPES.find((m) => m.value === dev.type)?.hasCalibre && (
                                 <select value={dev.calibreA || ''} onChange={(e) => {
                                   const newChain = [...row.maniobraChain];
-                                  newChain[idx] = { ...newChain[idx], calibreA: Number(e.target.value) };
+                                  newChain[idx] = { ...newChain[idx]!, calibreA: Number(e.target.value) };
                                   setRows((prev) => prev.map((r) => r.key === row.key ? { ...r, maniobraChain: newChain } : r));
                                   setDirty(true);
                                 }} className={`${selectCls} w-20`}>
@@ -1048,10 +1078,6 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                     ? diffs.map(d => `${d.name} ${d.calibreA}A/${d.sensitivityMa}mA tipo ${d.type}`).join(' · ')
                     : `${supplyResult.differentials.length} × ${supplyResult.differentials[0]?.sensitivityMa ?? 30} mA (sugeridos)`}
                 </p>
-              </div>
-              <div>
-                <span className="text-surface-500 text-xs">I cálculo</span>
-                <p className="font-medium">{supplyResult.iga.nominalCurrentA} A</p>
               </div>
             </div>
             {supplyResult.warnings && supplyResult.warnings.length > 0 && (

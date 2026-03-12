@@ -139,7 +139,7 @@ export function generateFromAPI(
     const assignedIds = new Set(diffGroups.flatMap((g) => g.circuits.map((c) => c.id)));
     const unassigned = circuits.filter((c) => !assignedIds.has(c.id));
     if (unassigned.length > 0 && differentials[0]) {
-      diffGroups[0].circuits.push(...unassigned);
+      diffGroups[0]!.circuits.push(...unassigned);
     } else if (unassigned.length > 0) {
       diffGroups.push({
         diff: { id: 'auto', name: 'Dif.1', calibreA: 40, sensitivityMa: 30, type: 'AC', poles: 2 },
@@ -233,6 +233,7 @@ export function generateFromAPI(
       if (chain.length > 0) {
         for (let ci = 0; ci < chain.length; ci++) {
           const dev = chain[ci];
+          if (!dev) continue;
           const devY = maniobraStartY + ci * DEVICE_SPACING;
           const devCalibre = dev.calibreA || breakerCalibre || 16;
           let maniobraNode: UnifilarNode;
@@ -359,7 +360,7 @@ export function generateFromAPI(
     barraWidth = (maxDiffX - minDiffX) + 120;
     barraCenterX = (minDiffX + maxDiffX) / 2;
   } else if (diffPositions.length === 1) {
-    barraCenterX = diffPositions[0];
+    barraCenterX = diffPositions[0] ?? 0;
     barraWidth = 300;
   }
 

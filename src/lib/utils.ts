@@ -45,6 +45,8 @@ export function getStatusLabel(status: string): string {
     RETURNED: 'Devuelto',
     APPROVED: 'Aprobado',
     DOCUMENTED: 'Documentado',
+    SIGNED: 'Firmado',
+    SUBMITTED: 'Tramitado',
     COMPLETED: 'Completado',
   };
   return labels[status] ?? status;
@@ -61,6 +63,8 @@ export function getStatusClasses(status: string): string {
     RETURNED: 'bg-red-50 text-red-600',
     APPROVED: 'bg-emerald-50 text-emerald-600',
     DOCUMENTED: 'bg-violet-50 text-violet-600',
+    SIGNED: 'bg-indigo-50 text-indigo-600',
+    SUBMITTED: 'bg-teal-50 text-teal-600',
     COMPLETED: 'bg-green-50 text-green-600',
   };
   return classes[status] ?? 'bg-surface-100 text-surface-600';

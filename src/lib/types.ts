@@ -1,6 +1,6 @@
 // ─── User & Auth ─────────────────────────────────────────────
 
-export type UserRole = 'OPERATOR' | 'SIGNER' | 'ADMIN';
+export type UserRole = 'VIEWER' | 'OPERATOR' | 'SIGNER' | 'ADMIN' | 'SUPERADMIN';
 
 export interface User {
   id: string;
@@ -45,6 +45,8 @@ export type InstallationStatus =
   | 'RETURNED'
   | 'APPROVED'
   | 'DOCUMENTED'
+  | 'SIGNED'
+  | 'SUBMITTED'
   | 'COMPLETED';
 
 export type SupplyType =
@@ -81,6 +83,11 @@ export interface Installation {
   installerName?: string | null;
   installerNif?: string | null;
   installerRegNum?: string | null;
+  seccionDi?: number | null;
+  materialDi?: string | null;
+  longitudDi?: number | null;
+  aislamientoDi?: string | null;
+  tipoInstalacionDi?: string | null;
   status: InstallationStatus;
   templateUsed?: string | null;
   reviewNotes?: string | null;

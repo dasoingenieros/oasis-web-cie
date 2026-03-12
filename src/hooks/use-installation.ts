@@ -97,7 +97,7 @@ export function useInstallation(id: string) {
       return result;
     } catch (err) {
       console.error('Error calculando suministro:', err);
-      return null;
+      throw new Error('Circuitos calculados pero el suministro tuvo un error');
     }
   }, [id]);
 

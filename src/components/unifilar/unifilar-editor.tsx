@@ -579,7 +579,7 @@ function PropertiesPanel({ state, dispatch }: { state: UnifilarState; dispatch: 
   const isNode = selection.type === 'node';
   const item = isNode ? nodes.find(n => n.id === selection.id) : wires.find(w => w.id === selection.id);
   if (!item) return null;
-  const props = item.props || {};
+  const props: Record<string, any> = item.props || {};
   const update = (p: Record<string,any>) => dispatch({ type: 'UPDATE_PROPS', props: p });
 
   const fields: Array<{key:string;label:string;type:'text'|'number'|'select';options?:string[];step?:number}> = isNode
@@ -669,7 +669,7 @@ export function UnifilarEditor({ installationId, initialTemplate, onClose, insta
     historyRef.current = [];
     historyPosRef.current = -1;
   }
-  const emptyTemplate: UnifilarTemplate = { nodes: [], wires: [], meta: { name: '', version: 1 } };
+  const emptyTemplate: UnifilarTemplate = { nodes: [], wires: [], meta: { name: '', version: 1, created: new Date().toISOString() } };
   const [state, rawDispatch] = useReducer(reducer, initialTemplate || emptyTemplate, initState);
   const pushHistory = useCallback((s: UnifilarState) => {
     if (isUndoRedoRef.current) return;
@@ -744,7 +744,11 @@ export function UnifilarEditor({ installationId, initialTemplate, onClose, insta
             };
           });
         }
-        const tmpl = generateFromAPI(instRes.data, panelRes.data, circuits);
+        const tmpl = generateFromAPI(
+          instRes.data as unknown as Parameters<typeof generateFromAPI>[0],
+          panelRes.data,
+          circuits as unknown as Parameters<typeof generateFromAPI>[2],
+        );
         dispatch({ type: 'LOAD_TEMPLATE', template: tmpl });
       } catch (err: any) {
         console.error('Unifilar API error:', err);

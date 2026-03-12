@@ -77,22 +77,22 @@ export interface CircuitTemplate {
 }
 
 export const CIRCUIT_TEMPLATES_BASICA: CircuitTemplate[] = [
-  { code: 'C1', name: 'Alumbrado',                   power: 2300, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 10, sectionMm2: 1.5, numConductors: 2 },
-  { code: 'C2', name: 'TC uso general',              power: 3680, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 16, sectionMm2: 2.5, numConductors: 2 },
-  { code: 'C3', name: 'Cocina/horno',                power: 5750, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 25, sectionMm2: 6,   numConductors: 2 },
-  { code: 'C4', name: 'Lavadora/lavavajillas/termo', power: 4600, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 20, sectionMm2: 4,   numConductors: 2 },
-  { code: 'C5', name: 'TC baño/cocina',              power: 3680, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 16, sectionMm2: 2.5, numConductors: 2 },
+  { code: 'C1', name: 'Alumbrado',                   power: 2300, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 10, sectionMm2: 1.5, numConductors: 2 },
+  { code: 'C2', name: 'TC uso general',              power: 3680, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 16, sectionMm2: 2.5, numConductors: 2 },
+  { code: 'C3', name: 'Cocina/horno',                power: 5750, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 25, sectionMm2: 6,   numConductors: 2 },
+  { code: 'C4', name: 'Lavadora/lavavajillas/termo', power: 4600, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 20, sectionMm2: 4,   numConductors: 2 },
+  { code: 'C5', name: 'TC baño/cocina',              power: 3680, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 16, sectionMm2: 2.5, numConductors: 2 },
 ];
 
 export const CIRCUIT_TEMPLATES_ELEVADA: CircuitTemplate[] = [
   ...CIRCUIT_TEMPLATES_BASICA,
-  { code: 'C6',  name: 'Alumbrado adicional',    power: 2300, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 10, sectionMm2: 1.5, numConductors: 2 },
-  { code: 'C7',  name: 'TC adicional',           power: 3680, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 16, sectionMm2: 2.5, numConductors: 2 },
-  { code: 'C8',  name: 'Calefacción eléctrica',  power: 5750, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1, defaultLength: 20, piaA: 25, sectionMm2: 6,   numConductors: 2 },
-  { code: 'C9',  name: 'Aire acondicionado',     power: 5750, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 25, sectionMm2: 6,   numConductors: 2 },
-  { code: 'C10', name: 'Secadora',               power: 4600, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1, defaultLength: 10, piaA: 20, sectionMm2: 4,   numConductors: 2 },
-  { code: 'C11', name: 'Automatización',          power: 2300, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1, defaultLength: 20, piaA: 10, sectionMm2: 1.5, numConductors: 2 },
-  { code: 'C12', name: 'Circuito adicional',     power: 3680, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 16, sectionMm2: 2.5, numConductors: 2 },
+  { code: 'C6',  name: 'Alumbrado adicional',    power: 2300, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 10, sectionMm2: 1.5, numConductors: 2 },
+  { code: 'C7',  name: 'TC adicional',           power: 3680, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 16, sectionMm2: 2.5, numConductors: 2 },
+  { code: 'C8',  name: 'Calefacción eléctrica',  power: 5750, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1, defaultLength: 20, piaA: 25, sectionMm2: 6,   numConductors: 2 },
+  { code: 'C9',  name: 'Aire acondicionado',     power: 5750, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 25, sectionMm2: 6,   numConductors: 2 },
+  { code: 'C10', name: 'Secadora',               power: 4600, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1, defaultLength: 10, piaA: 20, sectionMm2: 4,   numConductors: 2 },
+  { code: 'C11', name: 'Automatización',          power: 2300, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1, defaultLength: 20, piaA: 10, sectionMm2: 1.5, numConductors: 2 },
+  { code: 'C12', name: 'Circuito adicional',     power: 3680, voltage: 230, phases: 1, cableType: 'CU', insulationType: 'H07Z1-K', installMethod: 'A1', cosPhi: 1, defaultLength: 15, piaA: 16, sectionMm2: 2.5, numConductors: 2 },
 ];
 
 export const CIRCUIT_TEMPLATES_IRVE: CircuitTemplate[] = [

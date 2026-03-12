@@ -15,7 +15,7 @@ const CALC_LOCKED_FIELDS = new Set([
   'seccionLga', 'materialLga', 'longitudLga', 'aislamientoLga',
   'materialDi', 'longitudDi', 'numDerivaciones', 'aislamientoDi', 'tipoInstalacionDi',
   'seccionLineaEnlace', 'seccionCondProteccion',
-  'igaNominal', 'igaPoderCorte', 'diferencialNominal', 'diferencialSensibilidad',
+  'igaPoderCorte', 'diferencialNominal', 'diferencialSensibilidad',
   'potMaxAdmisible',
 ]);
 
@@ -218,7 +218,7 @@ const POTENCIAS_TRI: Array<{ value: string; label: string }> = [
   { value: '34641', label: '34.641 W (50A)' },
   { value: '43648', label: '43.648 W (63A)' },
 ];
-const POTENCIAS_REBT_BASICA_MONO = [POTENCIAS_MONO[1]]; // 5.750 W only
+const POTENCIAS_REBT_BASICA_MONO = [POTENCIAS_MONO[1]!]; // 5.750 W only
 const POTENCIAS_REBT_BASICA_TRI = POTENCIAS_TRI.slice(0, 3); // up to 17.321 W
 const POTENCIAS_REBT_ELEVADA_MONO = POTENCIAS_MONO.slice(1); // 5.750 – 14.490 W
 const POTENCIAS_REBT_ELEVADA_TRI = POTENCIAS_TRI;
@@ -242,13 +242,32 @@ export interface DatosFormState { percent: number; filled: number; total: number
 export interface DatosFormHandle { save: () => Promise<void>; }
 interface DatosFormProps { installation: Installation; isSaving: boolean; onSave: (data: UpdateInstallationDto) => Promise<void>; onStateChange?: (state: DatosFormState) => void; }
 
-function Section({ title, num, defaultOpen = true, children, badge }: { title: string; num: number; defaultOpen?: boolean; children: React.ReactNode; badge?: React.ReactNode; }) {
-  const [open, setOpen] = useState(defaultOpen);
+// ─── Campos obligatorios por sección (para indicador completitud) ───
+const SECTION_REQUIRED_FIELDS: Record<number, string[]> = {
+  1: ['tipoAutor'],
+  2: ['titularNif', 'titularNombre', 'titularApellido1', 'titularTipoVia', 'titularNombreVia', 'titularNumero', 'titularLocalidad', 'titularProvincia', 'titularCp', 'titularEmail'],
+  3: ['emplazTipoVia', 'emplazNombreVia', 'emplazNumero', 'emplazLocalidad', 'emplazProvincia', 'emplazCp', 'contadorUbicacion'],
+  4: ['supplyType', 'supplyVoltage', 'tipoActuacion', 'usoInstalacion', 'esquemaDistribucion', 'tipoInstalacionCie', 'numRegistroExistente', 'potOriginal'],
+  5: ['puntoConexion', 'tipoAcometida', 'materialAcometida'],
+  6: ['tipoCgp'],
+  7: [], 8: [], 9: [],
+  10: ['resistenciaTierra', 'resistenciaAislamiento'],
+  11: ['empresaNif', 'empresaNombre', 'empresaCategoria', 'empresaRegNum', 'instaladorNombre', 'instaladorNif', 'empresaTipoVia', 'empresaNombreVia', 'empresaNumero', 'empresaLocalidad', 'empresaProvincia', 'empresaCp', 'empresaEmail'],
+  12: ['distribuidora'],
+  13: [], 14: [], 15: [],
+};
+const SECTION_SPECIAL_VALIDATIONS: Record<number, number[]> = { 2: [0], 11: [1] };
+
+function Section({ title, num, open, onToggle, children, badge, complete, pending }: { title: string; num: number; open: boolean; onToggle: () => void; children: React.ReactNode; badge?: React.ReactNode; complete?: boolean; pending?: number; }) {
+  const isComplete = complete === true;
   return (
     <section className="border border-surface-200 rounded-lg overflow-hidden">
-      <button type="button" onClick={() => setOpen(!open)} className="flex items-center gap-3 w-full px-4 py-3 bg-surface-50 hover:bg-surface-100 transition-colors text-left">
-        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">{num}</span>
-        <span className="text-sm font-semibold text-surface-900 flex-1">{title}</span>
+      <button type="button" onClick={onToggle} className="flex items-center gap-3 w-full px-4 py-3 bg-surface-50 hover:bg-surface-100 transition-colors text-left">
+        <span className={`flex items-center justify-center w-6 h-6 rounded-full text-white text-xs font-bold ${isComplete ? 'bg-emerald-600' : 'bg-blue-600'}`}>{isComplete ? '✓' : num}</span>
+        <span className={`text-sm font-semibold flex-1 ${isComplete ? 'text-emerald-600' : 'text-surface-900'}`}>{title}</span>
+        {complete === false && pending !== undefined && pending > 0 && (
+          <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium">{pending} campo{pending !== 1 ? 's' : ''} pendiente{pending !== 1 ? 's' : ''}</span>
+        )}
         {badge}
         {open ? <ChevronDown className="h-4 w-4 text-surface-400" /> : <ChevronRight className="h-4 w-4 text-surface-400" />}
       </button>
@@ -373,6 +392,11 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [data, setData] = useState<Record<string, any>>({});
+  const [openSections, setOpenSections] = useState<Record<number, boolean>>({
+    1: true, 2: true, 3: true, 4: true, 5: false, 6: false, 7: false, 8: false,
+    9: false, 10: false, 11: true, 12: false, 13: false, 14: false, 15: false,
+  });
+  const sectionsInitialized = useRef(false);
 
   // Team: installers & technicians
   const [installers, setInstallers] = useState<Installer[]>([]);
@@ -480,6 +504,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       infoAdicional: i.infoAdicional??'', firmaLugar: i.firmaLugar??'',
     });
     setDirty(false);
+    sectionsInitialized.current = false;
   }, [installation]);
 
   const set = (field: string, value: any) => { setData((prev) => ({ ...prev, [field]: value })); setDirty(true); };
@@ -493,8 +518,8 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
 
   // Auto-preseleccionar si solo hay 1 subtipo
   useEffect(() => {
-    if (cieTypeOptions.length === 1 && data.tipoInstalacionCie !== cieTypeOptions[0].value) {
-      setData((prev) => ({ ...prev, tipoInstalacionCie: cieTypeOptions[0].value, usoInstalacion: cieTypeOptions[0].value }));
+    if (cieTypeOptions.length === 1 && data.tipoInstalacionCie !== cieTypeOptions[0]?.value) {
+      setData((prev) => ({ ...prev, tipoInstalacionCie: cieTypeOptions[0]?.value ?? '', usoInstalacion: cieTypeOptions[0]?.value ?? '' }));
       setDirty(true);
     }
   }, [cieTypeOptions]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -518,6 +543,51 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
     const t = rf.length + sv.length;
     return { filled: fc + so, total: t, percent: Math.round(((fc + so) / t) * 100) };
   }, [data, rf, sv]);
+
+  // ─── Completitud por sección ───
+  const sectionStatus = useMemo(() => {
+    const rfSet = new Set(rf);
+    const result: Record<number, { complete: boolean; pending: number; hasRequired: boolean }> = {};
+    for (let secNum = 1; secNum <= 15; secNum++) {
+      const fields = SECTION_REQUIRED_FIELDS[secNum] || [];
+      const reqFields = fields.filter(f => rfSet.has(f));
+      let total = reqFields.length;
+      let filled = 0;
+      for (const f of reqFields) {
+        const v = data[f];
+        if (v !== undefined && v !== null && v !== '' && v !== false) filled++;
+      }
+      const specials = SECTION_SPECIAL_VALIDATIONS[secNum];
+      if (specials) {
+        for (const idx of specials) {
+          if (sv[idx]) { total++; if (sv[idx].ok) filled++; }
+        }
+      }
+      const pend = total - filled;
+      result[secNum] = { complete: total > 0 && pend === 0, pending: pend, hasRequired: total > 0 };
+    }
+    return result;
+  }, [data, rf, sv]);
+
+  useEffect(() => {
+    if (sectionsInitialized.current || data.supplyType === undefined) return;
+    sectionsInitialized.current = true;
+    setOpenSections(prev => {
+      const res = { ...prev };
+      for (let i = 1; i <= 15; i++) {
+        const ss = sectionStatus[i];
+        if (ss?.hasRequired) res[i] = !ss.complete;
+      }
+      return res;
+    });
+  }, [data, sectionStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleSection = (n: number) => setOpenSections(prev => ({ ...prev, [n]: !prev[n] }));
+  const secProps = (n: number) => ({
+    open: openSections[n] ?? false, onToggle: () => toggleSection(n),
+    complete: sectionStatus[n]?.hasRequired ? sectionStatus[n].complete : undefined,
+    pending: sectionStatus[n]?.hasRequired ? sectionStatus[n].pending : undefined,
+  });
 
   const handleSave = async () => {
     const dto: UpdateInstallationDto = {};
@@ -592,7 +662,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       })()}
 
       {/* 1. AUTOR DE LA MEMORIA */}
-      <Section title="Autor de la Memoria" num={1}>
+      <Section title="Autor de la Memoria" num={1} {...secProps(1)}>
         <SelectField label="Tipo de autor" field="tipoAutor" value={data.tipoAutor??''} onChange={(f, v) => {
           set(f, v);
           // Auto-select default or single member when switching
@@ -735,7 +805,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 2. TITULAR */}
-      <Section title="Datos del Titular" num={2}>
+      <Section title="Datos del Titular" num={2} {...secProps(2)}>
         <div className="grid grid-cols-3 gap-3">
           <TextField label="NIF / CIF" field="titularNif" value={data.titularNif??''} onChange={set} placeholder="12345678A" rf={rf} />
           <TextField label="Nombre / Razón Social" field="titularNombre" value={data.titularNombre??''} onChange={set} rf={rf} />
@@ -761,7 +831,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 3. EMPLAZAMIENTO */}
-      <Section title="Emplazamiento de la Instalación" num={3}>
+      <Section title="Emplazamiento de la Instalación" num={3} {...secProps(3)}>
         <DireccionFields prefix="emplaz" data={data} onChange={set} rf={rf} />
         <div className="grid grid-cols-2 gap-3">
           <TextField label="CUPS" field="cups" value={data.cups??''} onChange={set} placeholder="ES0000000000000000XX" rf={rf} />
@@ -771,7 +841,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 4. DATOS TÉCNICOS */}
-      <Section title="Datos Técnicos" num={4}>
+      <Section title="Datos Técnicos" num={4} {...secProps(4)}>
         <div className="grid grid-cols-3 gap-3">
           <SelectField label="Tipo instalación (cálculo)" field="supplyType" value={data.supplyType??''} onChange={set} options={SUPPLY_TYPES} rf={rf} locked={isLocked('supplyType')} />
           <SelectField label="Tensión" field="supplyVoltage" value={data.supplyVoltage??'230'} onChange={set} options={[{value:'230',label:'230 V (Monofásica)'},{value:'400',label:'400 V (Trifásica)'}]} rf={rf} locked={isLocked('supplyVoltage')} />
@@ -813,7 +883,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 5. ACOMETIDA */}
-      <Section title="Acometida" num={5} defaultOpen={false}>
+      <Section title="Acometida" num={5} {...secProps(5)}>
         <div className="grid grid-cols-4 gap-3">
           <SelectField label="Punto de conexión" field="puntoConexion" value={data.puntoConexion??''} onChange={set} options={PUNTOS_CONEXION} rf={rf} />
           <SelectField label="Tipo" field="tipoAcometida" value={data.tipoAcometida??''} onChange={set} options={TIPOS_ACOMETIDA} rf={rf} />
@@ -823,7 +893,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 6. CGP */}
-      <Section title="C.G.P. o C/C de Seguridad" num={6} defaultOpen={false}>
+      <Section title="C.G.P. o C/C de Seguridad" num={6} {...secProps(6)}>
         <div className="grid grid-cols-3 gap-3">
           <SelectField label="Tipo" field="tipoCgp" value={data.tipoCgp??''} onChange={set} options={TIPOS_CGP} rf={rf} />
           <NumberField label="In. Base" field="inBaseCgp" value={data.inBaseCgp??''} onChange={set} suffix="A" rf={rf} />
@@ -832,7 +902,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 7. LGA + DI */}
-      <Section title="L.G.A. y Derivación Individual" num={7} defaultOpen={false}>
+      <Section title="L.G.A. y Derivación Individual" num={7} {...secProps(7)}>
         <p className="text-xs text-surface-500 font-medium mb-1">Línea General de Alimentación</p>
         <div className="grid grid-cols-4 gap-3">
           <NumberField label="Sección LGA" field="seccionLga" value={data.seccionLga??''} onChange={set} suffix="mm²" rf={rf} locked={isLocked('seccionLga')} />
@@ -854,7 +924,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 8. MÓDULO DE MEDIDA */}
-      <Section title="Módulo de Medida" num={8} defaultOpen={false}>
+      <Section title="Módulo de Medida" num={8} {...secProps(8)}>
         <div className="grid grid-cols-2 gap-3">
           <SelectField label="Tipo" field="tipoModuloMedida" value={data.tipoModuloMedida??''} onChange={set} options={TIPOS_MODULO} rf={rf} />
           <SelectField label="Situación" field="situacionModulo" value={data.situacionModulo??''} onChange={set} options={SITUACIONES_MODULO} rf={rf} />
@@ -862,7 +932,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 9. PROTECCIONES */}
-      <Section title="Protecciones" num={9} defaultOpen={false}>
+      <Section title="Protecciones" num={9} {...secProps(9)}>
         <div className="grid grid-cols-4 gap-3">
           <NumberField label="IGA (A)" field="igaNominal" value={data.igaNominal??''} onChange={set} suffix="A" rf={rf} locked={isLocked('igaNominal')} />
           <NumberField label="IGA P. corte" field="igaPoderCorte" value={data.igaPoderCorte??''} onChange={set} suffix="kA" rf={rf} locked={isLocked('igaPoderCorte')} />
@@ -873,7 +943,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 10. PUESTA A TIERRA Y VERIFICACIONES */}
-      <Section title="Puesta a Tierra y Verificaciones" num={10} defaultOpen={false}>
+      <Section title="Puesta a Tierra y Verificaciones" num={10} {...secProps(10)}>
         <div className="grid grid-cols-3 gap-3">
           <SelectField label="Tipo electrodos" field="tipoElectrodos" value={data.tipoElectrodos??''} onChange={set} options={TIPOS_ELECTRODO} rf={rf} />
           <NumberField label="Sección línea enlace" field="seccionLineaEnlace" value={data.seccionLineaEnlace??''} onChange={set} suffix="mm²" rf={rf} locked={isLocked('seccionLineaEnlace')} />
@@ -887,7 +957,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 11. EMPRESA INSTALADORA */}
-      <Section title="Empresa Instaladora" num={11}>
+      <Section title="Empresa Instaladora" num={11} {...secProps(11)}>
         <div className="grid grid-cols-3 gap-3">
           <TextField label="NIF empresa" field="empresaNif" value={data.empresaNif??''} onChange={set} rf={rf} />
           <TextField label="Nombre / Razón Social" field="empresaNombre" value={data.empresaNombre??''} onChange={set} className="col-span-2" rf={rf} />
@@ -919,12 +989,12 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 12. DISTRIBUIDORA */}
-      <Section title="Empresa Distribuidora" num={12} defaultOpen={false}>
+      <Section title="Empresa Distribuidora" num={12} {...secProps(12)}>
         <SelectField label="Distribuidora" field="distribuidora" value={data.distribuidora??''} onChange={set} options={DISTRIBUIDORAS.map((d) => ({value:d,label:d}))} rf={rf} />
       </Section>
 
       {/* 13. CERTIFICACIÓN (CIE) */}
-      <Section title="Certificación (CIE)" num={13} defaultOpen={false}>
+      <Section title="Certificación (CIE)" num={13} {...secProps(13)}>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2"><input type="checkbox" checked={data.aplicaReeae??false} onChange={(e) => set('aplicaReeae', e.target.checked)} className="rounded border-surface-300" /><Label className="text-xs text-surface-700">Aplica RD 1890/2008 (REEAE — Alumbrado)</Label></div>
           {data.aplicaReeae && <NumberField label="Pot. luminarias" field="potLuminariasReeae" value={data.potLuminariasReeae??''} onChange={set} suffix="kW" step="0.01" className="w-40" rf={rf} />}
@@ -933,7 +1003,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 14. PRESUPUESTO */}
-      <Section title="Presupuesto" num={14} defaultOpen={false}>
+      <Section title="Presupuesto" num={14} {...secProps(14)}>
         <div className="grid grid-cols-3 gap-3">
           <NumberField label="Materiales" field="presupuestoMateriales" value={data.presupuestoMateriales??''} onChange={set} suffix="€" step="0.01" rf={rf} />
           <NumberField label="Mano de obra" field="presupuestoManoObra" value={data.presupuestoManoObra??''} onChange={set} suffix="€" step="0.01" rf={rf} />
@@ -942,7 +1012,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       </Section>
 
       {/* 15. INFO ADICIONAL + MEMORIA */}
-      <Section title="Información Adicional y Memoria" num={15} defaultOpen={false}>
+      <Section title="Información Adicional y Memoria" num={15} {...secProps(15)}>
         <div><Label className="text-xs text-surface-700 mb-1 block">Descripción de los trabajos (CIE)</Label><textarea className="w-full rounded-md border border-surface-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[80px]" value={data.infoAdicional??''} onChange={(e) => set('infoAdicional', e.target.value)} /></div>
         <div><Label className="text-xs text-surface-700 mb-1 block">Memoria descriptiva (MTD pág. 6)</Label><textarea className="w-full rounded-md border border-surface-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[120px]" value={data.memoriaDescriptiva??''} onChange={(e) => set('memoriaDescriptiva', e.target.value)} placeholder="Descripción detallada de la instalación..." /></div>
         <TextField label="Lugar de firma" field="firmaLugar" value={data.firmaLugar??''} onChange={set} placeholder="MADRID" className="w-48" rf={rf} />

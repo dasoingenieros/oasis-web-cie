@@ -133,6 +133,7 @@ export const documentsApi = {
 export const panelsApi = {
   async get(installationId: string): Promise<ElectricalPanel | null> { try { const { data } = await api.get<ElectricalPanel>(`/installations/${installationId}/panel`); return data; } catch { return null; } },
   async save(installationId: string, dto: SavePanelWithDifferentialsDto): Promise<ElectricalPanel> { const { data } = await api.put<ElectricalPanel>(`/installations/${installationId}/panel`, dto); return data; },
+  async saveAll(installationId: string, dto: { circuits: any[]; panel: SavePanelWithDifferentialsDto; installationUpdates?: Record<string, any> }): Promise<{ circuits: Circuit[]; panel: ElectricalPanel }> { const { data } = await api.put(`/installations/${installationId}/panel/save-all`, dto); return data; },
   async createFromTemplate(installationId: string): Promise<ElectricalPanel> { const { data } = await api.post<ElectricalPanel>(`/installations/${installationId}/panel/template`); return data; },
   async reset(installationId: string): Promise<void> { await api.delete(`/installations/${installationId}/panel/reset`); },
 };
