@@ -4,7 +4,7 @@
 // unifilar posicionado automaticamente.
 // ═══════════════════════════════════════════════════════════════
 
-import { UnifilarNode, UnifilarWire, UnifilarTemplate, uid, snap } from './types';
+import { UnifilarNode, UnifilarWire, UnifilarTemplate, uid, snap, SymbolType } from './types';
 
 interface InstallationData {
   id: string;
@@ -278,15 +278,23 @@ export function generateFromAPI(
         }
       }
 
-      // Receptor
-      const isLight = /alumbrado|luz|iluminaci/i.test(circ.name);
-      const isMotor = /motor|bomba|compresor|ventilador/i.test(circ.name);
-      const endType = isMotor ? 'motor' : isLight ? 'punto_luz' : 'toma_corriente';
+      // Receptor — use loadType field, fallback to name regex
+      const lt = (circ as any).loadType as string | undefined;
+      const endType: SymbolType = lt === 'MOTOR' ? 'motor'
+        : lt === 'ALUMBRADO' ? 'punto_luz'
+        : lt === 'ALUMBRADO_EMERGENCIA' ? 'alumbrado_emergencia'
+        : lt === 'RESISTIVO' ? 'resistivo'
+        : lt === 'IRVE' ? 'irve'
+        : lt === 'DOMOTICA' ? 'domotica'
+        : lt === 'FUERZA' ? 'toma_corriente'
+        : /motor|bomba|compresor|ventilador/i.test(circ.name) ? 'motor'
+        : /alumbrado|luz|iluminaci/i.test(circ.name) ? 'punto_luz'
+        : 'toma_corriente';
       const endNode: UnifilarNode = {
         id: uid(), type: endType, x: snap(circX), y: receptorY,
         props: {
           label: '',
-          ...(isMotor ? { potencia: `${circ.power}W`, phases: circ.phases === 3 ? 3 : 1 } : {}),
+          ...(endType === 'motor' ? { potencia: `${circ.power}W`, phases: circ.phases === 3 ? 3 : 1 } : {}),
         },
       };
       nodes.push(endNode);

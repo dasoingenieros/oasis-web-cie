@@ -170,13 +170,15 @@ export interface Circuit {
   shortCircuit?: number | null;
   compliance?: boolean | null;
   justification?: Record<string, unknown> | null;
-  isLighting?: boolean;
+  loadType?: string;
   maniobraType?: string | null;
   maniobraCalibreA?: number | null;
   maniobraExtra?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 }
+
+export type LoadType = 'FUERZA' | 'ALUMBRADO' | 'ALUMBRADO_EMERGENCIA' | 'MOTOR' | 'RESISTIVO' | 'IRVE' | 'DOMOTICA';
 
 export interface CreateCircuitDto {
   name: string;
@@ -192,7 +194,7 @@ export interface CreateCircuitDto {
   cosPhi?: number;
   tempCorrFactor?: number;
   groupCorrFactor?: number;
-  isLighting?: boolean;
+  loadType?: string;
   maniobraType?: string;
   maniobraCalibreA?: number;
   maniobraExtra?: Record<string, unknown>;

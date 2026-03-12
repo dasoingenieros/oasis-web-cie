@@ -91,6 +91,7 @@ interface MergedCircuit {
   breakerRatingA: number | null;
   breakerCurve: string | null;
   rcdSensitivityMa: number | null;
+  loadType: string;
   isCompliant: boolean | null;
   justificationSteps: JustificationStep[];
 }
@@ -174,6 +175,7 @@ export function ResultadosTab({
         breakerRatingA: eng.breakerRatingA ?? null,
         breakerCurve: eng.breakerCurve ?? null,
         rcdSensitivityMa: eng.rcdSensitivityMa ?? null,
+        loadType: (prismaCircuit as any)?.loadType ?? 'FUERZA',
         isCompliant: eng.isCompliant ?? null,
         justificationSteps: steps,
       };
@@ -304,8 +306,7 @@ function CircuitRow({ circuit }: { circuit: MergedCircuit }) {
   const hasSteps = circuit.justificationSteps.length > 0;
 
   // Color CdT según límite
-  const isLighting = circuit.code === 'C1' || circuit.code === 'C6' || circuit.code === 'C11';
-  const cdtLimit = isLighting ? 3.0 : 5.0;
+  const cdtLimit = (circuit.loadType === 'ALUMBRADO' || circuit.loadType === 'ALUMBRADO_EMERGENCIA') ? 3.0 : 5.0;
   const cdtValue = circuit.voltageDropPct;
   const cdtWarning = cdtValue != null && cdtValue > cdtLimit * 0.8;
   const cdtDanger = cdtValue != null && cdtValue > cdtLimit;

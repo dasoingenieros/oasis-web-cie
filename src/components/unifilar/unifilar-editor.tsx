@@ -115,6 +115,44 @@ function RenderSymbol({ node, isSelected }: { node: UnifilarNode; isSelected: bo
         <line x1={3} y1={2} x2={3} y2={8} stroke={color} strokeWidth={1.5} />
         {p.label && <text x={0} y={22} fill={muted} fontSize={6} fontFamily={FN} textAnchor="middle">{p.label}</text>}
       </g>);
+    case 'alumbrado_emergencia':
+      return (<g>
+        <line x1={0} y1={0} x2={0} y2={6} stroke={color} strokeWidth={1.5} />
+        <circle cx={0} cy={12} r={6} fill="none" stroke={color} strokeWidth={1.5} />
+        <line x1={-4} y1={8} x2={4} y2={16} stroke={color} strokeWidth={1} />
+        <line x1={4} y1={8} x2={-4} y2={16} stroke={color} strokeWidth={1} />
+        {/* Arrow pointing right for emergency */}
+        <line x1={8} y1={12} x2={14} y2={12} stroke={color} strokeWidth={1.2} />
+        <line x1={12} y1={10} x2={14} y2={12} stroke={color} strokeWidth={1.2} />
+        <line x1={12} y1={14} x2={14} y2={12} stroke={color} strokeWidth={1.2} />
+        {p.label && <text x={0} y={28} fill={muted} fontSize={6} fontFamily={FN} textAnchor="middle">{p.label}</text>}
+      </g>);
+    case 'resistivo':
+      return (<g>
+        <line x1={0} y1={0} x2={0} y2={4} stroke={color} strokeWidth={1.5} />
+        {/* Resistor zigzag IEC symbol */}
+        <rect x={-6} y={4} width={12} height={16} fill="none" stroke={color} strokeWidth={1.5} />
+        <line x1={0} y1={20} x2={0} y2={24} stroke={color} strokeWidth={1.5} />
+        {p.label && <text x={0} y={34} fill={muted} fontSize={6} fontFamily={FN} textAnchor="middle">{p.label}</text>}
+      </g>);
+    case 'irve':
+      return (<g>
+        <line x1={0} y1={0} x2={0} y2={4} stroke={color} strokeWidth={1.5} />
+        {/* EV charging symbol: circle with plug */}
+        <circle cx={0} cy={16} r={12} fill="none" stroke={color} strokeWidth={1.5} />
+        <text x={0} y={20} fill={color} fontSize={9} fontFamily={FN} textAnchor="middle" fontWeight="bold">EV</text>
+        <line x1={0} y1={28} x2={0} y2={32} stroke={color} strokeWidth={1.5} />
+        {p.label && <text x={0} y={42} fill={muted} fontSize={6} fontFamily={FN} textAnchor="middle">{p.label}</text>}
+      </g>);
+    case 'domotica':
+      return (<g>
+        <line x1={0} y1={0} x2={0} y2={4} stroke={color} strokeWidth={1.5} />
+        {/* Diamond shape for domotics */}
+        <polygon points="0,-8 8,0 0,8 -8,0" fill="none" stroke={color} strokeWidth={1.5} transform="translate(0,14)" />
+        <text x={0} y={17} fill={color} fontSize={7} fontFamily={FN} textAnchor="middle" fontWeight="600">D</text>
+        <line x1={0} y1={22} x2={0} y2={26} stroke={color} strokeWidth={1.5} />
+        {p.label && <text x={0} y={36} fill={muted} fontSize={6} fontFamily={FN} textAnchor="middle">{p.label}</text>}
+      </g>);
     case 'tierra':
       return (<g>
         <line x1={0} y1={0} x2={0} y2={6} stroke={C.earth} strokeWidth={1.5} />
@@ -323,7 +361,7 @@ function dxfPolyArc(cx:number,cy:number,r:number,s0:number,s1:number,n:number,la
 }
 
 function exportToDXF(state: UnifilarState): string {
-  const layerForType=(t:string)=>{switch(t){case'acometida':case'cgp':case'contador':return'ALIMENTACION';case'magnetotermico':case'diferencial':case'fusible':case'seccionador':case'magneto_diferencial':return'PROTECCION';case'busbar':return'DISTRIBUCION';case'punto_luz':case'toma_corriente':case'motor':return'RECEPTORES';case'contactor':case'guardamotor':case'reloj_horario':return'MANIOBRA';case'tierra':return'TIERRA';case'texto':return'TEXTO';default:return'CIRCUITOS';}};
+  const layerForType=(t:string)=>{switch(t){case'acometida':case'cgp':case'contador':return'ALIMENTACION';case'magnetotermico':case'diferencial':case'fusible':case'seccionador':case'magneto_diferencial':return'PROTECCION';case'busbar':return'DISTRIBUCION';case'punto_luz':case'toma_corriente':case'alumbrado_emergencia':case'resistivo':case'irve':case'domotica':case'motor':return'RECEPTORES';case'contactor':case'guardamotor':case'reloj_horario':return'MANIOBRA';case'tierra':return'TIERRA';case'texto':return'TEXTO';default:return'CIRCUITOS';}};
   const layers:{[k:string]:number}={ALIMENTACION:4,PROTECCION:2,DISTRIBUCION:3,CIRCUITOS:7,RECEPTORES:6,MANIOBRA:5,TIERRA:3,TEXTO:8,CAJETIN:9};
   let dxf=`  0\nSECTION\n  2\nHEADER\n  9\n$ACADVER\n  1\nAC1009\n  9\n$INSUNITS\n  70\n4\n  0\nENDSEC\n`;
   dxf+=`  0\nSECTION\n  2\nTABLES\n  0\nTABLE\n  2\nLTYPE\n  70\n1\n  0\nLTYPE\n  2\nCONTINUOUS\n  70\n0\n  3\nSolid\n  72\n65\n  73\n0\n  40\n0.0\n  0\nENDTAB\n`;
@@ -344,6 +382,10 @@ function exportToDXF(state: UnifilarState): string {
       case'busbar':{const bw=p.width||200;dxf+=dxfLine(x-bw/2,y,x+bw/2,y,'DISTRIBUCION',2)+dxfLine(x-bw/2,y+1.5,x+bw/2,y+1.5,'DISTRIBUCION',2);if(p.label)dxf+=dxfText(x-bw/2-10,y+3,3.5,p.label,T,2);break;}
       case'punto_luz':dxf+=dxfLine(x,y,x,y+6,'RECEPTORES')+dxfCircle(x,y+12,6,'RECEPTORES')+dxfLine(x-4,y+8,x+4,y+16,'RECEPTORES')+dxfLine(x+4,y+8,x-4,y+16,'RECEPTORES');if(p.label)dxf+=dxfText(x,y+24,3,p.label,T,undefined,1);break;
       case'toma_corriente':dxf+=dxfLine(x,y,x,y+4,'RECEPTORES')+dxfPolyArc(x,y+4,8,0,180,10,'RECEPTORES')+dxfLine(x-3,y+2,x-3,y+8,'RECEPTORES')+dxfLine(x+3,y+2,x+3,y+8,'RECEPTORES');if(p.label)dxf+=dxfText(x,y+20,3,p.label,T,undefined,1);break;
+      case'alumbrado_emergencia':dxf+=dxfLine(x,y,x,y+6,'RECEPTORES')+dxfCircle(x,y+12,6,'RECEPTORES')+dxfLine(x-4,y+8,x+4,y+16,'RECEPTORES')+dxfLine(x+4,y+8,x-4,y+16,'RECEPTORES')+dxfLine(x+8,y+12,x+14,y+12,'RECEPTORES');if(p.label)dxf+=dxfText(x,y+28,3,p.label,T,undefined,1);break;
+      case'resistivo':dxf+=dxfLine(x,y,x,y+4,'RECEPTORES')+dxfRect(x-6,y+4,12,16,'RECEPTORES')+dxfLine(x,y+20,x,y+24,'RECEPTORES');if(p.label)dxf+=dxfText(x,y+34,3,p.label,T,undefined,1);break;
+      case'irve':dxf+=dxfLine(x,y,x,y+4,'RECEPTORES')+dxfCircle(x,y+16,12,'RECEPTORES')+dxfText(x,y+20,4.5,'EV','RECEPTORES',undefined,1)+dxfLine(x,y+28,x,y+32,'RECEPTORES');if(p.label)dxf+=dxfText(x,y+42,3,p.label,T,undefined,1);break;
+      case'domotica':dxf+=dxfLine(x,y,x,y+6,'RECEPTORES')+dxfLine(x,y+6,x+8,y+14,'RECEPTORES')+dxfLine(x+8,y+14,x,y+22,'RECEPTORES')+dxfLine(x,y+22,x-8,y+14,'RECEPTORES')+dxfLine(x-8,y+14,x,y+6,'RECEPTORES')+dxfText(x,y+17,3.5,'D','RECEPTORES',undefined,1)+dxfLine(x,y+22,x,y+26,'RECEPTORES');if(p.label)dxf+=dxfText(x,y+36,3,p.label,T,undefined,1);break;
       case'tierra':dxf+=dxfLine(x,y,x,y+6,'TIERRA',3)+dxfLine(x-10,y+6,x+10,y+6,'TIERRA',3)+dxfLine(x-6,y+10,x+6,y+10,'TIERRA',3)+dxfLine(x-3,y+14,x+3,y+14,'TIERRA',3)+dxfText(x+14,y+10,3.5,'PE','TIERRA',3);break;
       case'texto':dxf+=dxfText(x,y+10,(p.fontSize||10)*0.5,p.text||'',T);break;
       case'contactor':dxf+=dxfLine(x,y,x,y+8,L)+dxfCircle(x,y+8,1.5,L)+dxfLine(x,y+8,x+8,y+28,L)+dxfCircle(x,y+32,1.5,L)+dxfRect(x-6,y+34,12,8,L)+dxfLine(x,y+42,x,y+48,L);if(p.label)dxf+=dxfText(x-16,y+20,3.5,p.label,T);if(p.calibre)dxf+=dxfText(x+14,y+20,4,`${p.calibre}A`,T,5);break;

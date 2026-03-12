@@ -6,7 +6,7 @@ export type SymbolType =
   | 'acometida' | 'cgp' | 'contador'
   | 'magnetotermico' | 'diferencial' | 'fusible'
   | 'busbar'
-  | 'punto_luz' | 'toma_corriente'
+  | 'punto_luz' | 'toma_corriente' | 'alumbrado_emergencia' | 'resistivo' | 'irve' | 'domotica'
   | 'tierra' | 'texto' | 'info_block'
   | 'contactor' | 'guardamotor' | 'reloj_horario' | 'motor' | 'seccionador' | 'magneto_diferencial';
 
@@ -31,6 +31,10 @@ export const SYMBOL_TYPES: Record<SymbolType, SymbolDef> = {
   busbar:               { label: 'Barra distribución',   w: 200, h: 6,   category: 'distribution' },
   punto_luz:            { label: 'Punto de luz',         w: 16,  h: 20,  category: 'receptor' },
   toma_corriente:       { label: 'Toma corriente',       w: 18,  h: 20,  category: 'receptor' },
+  alumbrado_emergencia: { label: 'Alumbrado emergencia', w: 20,  h: 24,  category: 'receptor' },
+  resistivo:            { label: 'Resistivo',            w: 20,  h: 24,  category: 'receptor' },
+  irve:                 { label: 'IRVE',                 w: 24,  h: 28,  category: 'receptor' },
+  domotica:             { label: 'Domótica',             w: 20,  h: 24,  category: 'receptor' },
   motor:                { label: 'Motor',                w: 30,  h: 36,  category: 'receptor' },
   contactor:            { label: 'Contactor',            w: 24,  h: 48,  category: 'maniobra' },
   guardamotor:          { label: 'Guardamotor',          w: 26,  h: 56,  category: 'maniobra' },

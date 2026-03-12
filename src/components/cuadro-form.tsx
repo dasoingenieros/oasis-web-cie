@@ -44,6 +44,27 @@ const DI_MATERIALS = ['CU', 'AL'];
 const DI_INSULATIONS = ['XLPE', 'PVC', 'EPR'];
 const DI_INSTALL_TYPES = ['TP', 'E.T.F.', 'E.T.C.', 'S.T.C.', 'F.D.P.', 'BANDJ.'];
 
+const LOAD_TYPES = [
+  { value: 'FUERZA', short: 'F', label: 'Fuerza', cdtLimit: 5 },
+  { value: 'ALUMBRADO', short: 'A', label: 'Alumbrado', cdtLimit: 3 },
+  { value: 'ALUMBRADO_EMERGENCIA', short: 'AE', label: 'Alumbrado emergencia', cdtLimit: 3 },
+  { value: 'MOTOR', short: 'M', label: 'Motor', cdtLimit: 5 },
+  { value: 'RESISTIVO', short: 'R', label: 'Resistivo', cdtLimit: 5 },
+  { value: 'IRVE', short: 'IRVE', label: 'IRVE', cdtLimit: 5 },
+  { value: 'DOMOTICA', short: 'D', label: 'Domótica', cdtLimit: 5 },
+] as const;
+
+function cdtLimitForLoadType(loadType: string): number {
+  return LOAD_TYPES.find((lt) => lt.value === loadType)?.cdtLimit ?? 5;
+}
+
+function loadTypeForCode(code: string): string {
+  if (code === 'C1' || code === 'C6') return 'ALUMBRADO';
+  if (code === 'C3' || code === 'C5') return 'RESISTIVO';
+  if (code === 'C11') return 'DOMOTICA';
+  return 'FUERZA';
+}
+
 const SECTION_TABLE: { section: number; iz: number }[] = [
   { section: 1.5, iz: 13 }, { section: 2.5, iz: 17.5 }, { section: 4, iz: 23 },
   { section: 6, iz: 30 }, { section: 10, iz: 40 }, { section: 16, iz: 52 },
@@ -173,7 +194,7 @@ interface CircuitRow {
   groupCorrFactor: number;
   installedPowerKw: string;
   isItcBt25: boolean;
-  isLighting: boolean;
+  loadType: string;
   maniobraChain: ManiobraDevice[];
   resultSection?: string;
   resultSectionMm2?: number;
@@ -201,7 +222,7 @@ function templateToRow(t: CircuitTemplate, order: number): CircuitRow {
     voltage: t.voltage, phases: t.phases, length: t.defaultLength,
     cableType: t.cableType, insulationType: t.insulationType, installMethod: t.installMethod,
     cosPhi: t.cosPhi, tempCorrFactor: 1, groupCorrFactor: 1, installedPowerKw: '',
-    isItcBt25: isItcBt25Code(t.code), isLighting: t.code === 'C1' || t.code === 'C6', maniobraChain: [],
+    isItcBt25: isItcBt25Code(t.code), loadType: loadTypeForCode(t.code), maniobraChain: [],
   };
 }
 
@@ -214,7 +235,7 @@ function circuitToRow(c: Circuit): CircuitRow {
     installMethod: c.installMethod, cosPhi: c.cosPhi,
     tempCorrFactor: c.tempCorrFactor, groupCorrFactor: c.groupCorrFactor,
     installedPowerKw: '', isItcBt25: isItcBt25Code(c.code ?? ''),
-    isLighting: c.isLighting ?? (c.code === 'C1' || c.code === 'C6'),
+    loadType: (c as any).loadType ?? ((c as any).isLighting ? 'ALUMBRADO' : loadTypeForCode(c.code ?? '')),
     maniobraChain: (c.maniobraExtra as any)?.chain ?? (c.maniobraType ? [{ type: c.maniobraType, calibreA: c.maniobraCalibreA ?? undefined }] : []),
   };
 }
@@ -223,7 +244,7 @@ function emptyRow(order: number): CircuitRow {
   return {
     key: nextKey(), code: '', name: '', order, iCalcA: 16, voltage: 230, phases: 1, length: 15,
     cableType: 'CU', insulationType: 'H07V-K', installMethod: 'A1', cosPhi: 1,
-    tempCorrFactor: 1, groupCorrFactor: 1, installedPowerKw: '', isItcBt25: false, isLighting: false, maniobraChain: [],
+    tempCorrFactor: 1, groupCorrFactor: 1, installedPowerKw: '', isItcBt25: false, loadType: 'FUERZA', maniobraChain: [],
   };
 }
 
@@ -597,7 +618,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
         power: r.voltage * r.iCalcA, voltage: r.voltage, phases: r.phases, length: r.length,
         cableType: r.cableType, insulationType: r.insulationType, installMethod: r.installMethod,
         cosPhi: r.cosPhi, tempCorrFactor: r.tempCorrFactor, groupCorrFactor: r.groupCorrFactor,
-        isLighting: r.isLighting,
+        loadType: r.loadType,
         maniobraType: r.maniobraChain.length > 0 ? r.maniobraChain[0].type : undefined,
         maniobraCalibreA: r.maniobraChain.length > 0 ? r.maniobraChain[0].calibreA : undefined,
         maniobraExtra: r.maniobraChain.length > 0 ? { chain: r.maniobraChain } : undefined,
@@ -690,16 +711,17 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-7">#</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-12">Cód.</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 min-w-[60px]">Circuito</th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-right">P.Cálc.<br/><span className="font-normal text-surface-400">kW</span></th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-14 text-center">Tipo</th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-14 text-right">P.Calc.<br/><span className="font-normal text-surface-400">kW</span></th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-[70px] text-center">V / Fases</th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-14 text-center">I.Cálc.<br/><span className="font-normal text-surface-400">A</span></th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-20 text-center">Sección</th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-20 text-center">S.Calc.</th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-14 text-center">I.Calc.<br/><span className="font-normal text-surface-400">A</span></th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-center">Sección</th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-center">S.Calc.</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-14 text-center">Mat</th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-20 text-center">Aisl.</th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-center">Aisl.</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-center">Inst.</th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-14">Long.<br/><span className="font-normal text-surface-400">m</span></th>
-              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-14 text-right">CdT<br/><span className="font-normal text-surface-400">%</span></th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-12">Long.<br/><span className="font-normal text-surface-400">m</span></th>
+              <th className="px-1.5 py-1.5 font-medium text-surface-700 w-16 text-right">CdT<br/><span className="font-normal text-surface-400">%</span></th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-12 text-center">PIA<br/><span className="font-normal text-surface-400">A</span></th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-10 text-center">Man.</th>
               {diffIdx === null && diffs.length > 0 && <th className="px-1.5 py-1.5 font-medium text-surface-700 w-24 text-center">Dif.</th>}
@@ -719,7 +741,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
               const sectionInsufficient = hasCalcSection && sectionMm2 < row.resultSectionMm2!;
 
               const hasJustification = (row.resultJustification?.length ?? 0) > 0;
-              const cdtLimit = row.isLighting ? 3.0 : 5.0;
+              const cdtLimit = cdtLimitForLoadType(row.loadType);
               // CdT con la sección del USUARIO (no la del motor)
               const cdtPct = calcUserCdtPct(row, sectionMm2);
               const cdtOk = cdtPct != null && cdtPct <= cdtLimit;
@@ -753,17 +775,12 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                       <input value={row.code} onChange={(e) => updateRow(row.key, 'code', e.target.value)} className={`${inputCls} w-12`} placeholder="—" />
                     </td>
                     <td className="px-1.5 py-1">
-                      <div className="flex items-center gap-1">
-                        <input value={row.name} onChange={(e) => updateRow(row.key, 'name', e.target.value)} className={`${inputCls} w-full`} placeholder="Nombre" />
-                        <button
-                          type="button"
-                          onClick={() => updateRow(row.key, 'isLighting', !row.isLighting)}
-                          className={`shrink-0 rounded p-0.5 text-xs transition-colors ${row.isLighting ? 'bg-amber-100 text-amber-600' : 'text-surface-300 hover:text-surface-500 hover:bg-surface-100'}`}
-                          title={row.isLighting ? 'Alumbrado (límite CdT 3%)' : 'Fuerza (límite CdT 5%) — pulsa para marcar como alumbrado'}
-                        >
-                          💡
-                        </button>
-                      </div>
+                      <input value={row.name} onChange={(e) => updateRow(row.key, 'name', e.target.value)} className={`${inputCls} w-full`} placeholder="Nombre" />
+                    </td>
+                    <td className="px-1.5 py-1 text-center">
+                      <select value={row.loadType} onChange={(e) => updateRow(row.key, 'loadType', e.target.value)} className={`${selectCls} w-14 text-[10px]`} title={LOAD_TYPES.find((lt) => lt.value === row.loadType)?.label ?? row.loadType}>
+                        {LOAD_TYPES.map((lt) => <option key={lt.value} value={lt.value}>{lt.short}</option>)}
+                      </select>
                     </td>
                     <td className="px-1.5 py-1 text-right">
                       <span className="text-xs tabular-nums text-surface-500">{pCalcKw}</span>
@@ -849,7 +866,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                   {/* Maniobra sub-row */}
                   {expandedManiobra.has(row.key) && (
                     <tr className="bg-blue-500/5 border-b border-surface-600">
-                      <td colSpan={diffIdx === null && diffs.length > 0 ? 17 : 16} className="px-3 py-2">
+                      <td colSpan={diffIdx === null && diffs.length > 0 ? 18 : 17} className="px-3 py-2">
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2 text-xs">
                             <span className="font-medium text-surface-500">Cadena maniobra:</span>
@@ -920,7 +937,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                   {/* Justification sub-row */}
                   {expandedJustification.has(row.key) && hasJustification && (
                     <tr>
-                      <td colSpan={diffIdx === null && diffs.length > 0 ? 17 : 16} className="p-0">
+                      <td colSpan={diffIdx === null && diffs.length > 0 ? 18 : 17} className="p-0">
                         <div className="bg-surface-50 border-t border-surface-200 px-6 py-4">
                           <div className="flex items-center gap-2 mb-3">
                             <Info className="h-4 w-4 text-blue-600" />
