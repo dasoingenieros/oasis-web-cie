@@ -464,3 +464,80 @@ export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   SOLICITUD: 'Solicitud BT',
   UNIFILAR: 'Esquema Unifilar',
 };
+
+// ─── Tramitación ASEICAM ─────────────────────────────────────
+
+export type TramitacionStatus =
+  | 'QUEUED'
+  | 'IN_PROGRESS'
+  | 'NEEDS_INPUT'
+  | 'SAVED'
+  | 'DOCUMENTS_UPLOADED'
+  | 'SENT'
+  | 'REGISTERED'
+  | 'ERROR';
+
+export interface TramitacionExpediente {
+  id: string;
+  tenantId: string;
+  installationId: string;
+  portalExpediente: string | null;
+  eiciId: string | null;
+  eiciNombre: string | null;
+  status: TramitacionStatus;
+  currentStep: string | null;
+  progress: number;
+  errorMessage: string | null;
+  needsInputData: {
+    field: string;
+    candidates: { uuid: string; label: string; confidence: number }[];
+    resolvedInputs?: Record<string, { value: string; label: string }>;
+  } | null;
+  attempts: number;
+  sentAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TramitacionConfig {
+  hasCredentials: boolean;
+  portalEiciId: string | null;
+  portalEiciName: string | null;
+}
+
+export const TRAMITACION_STATUS_LABELS: Record<TramitacionStatus, string> = {
+  QUEUED: 'En cola',
+  IN_PROGRESS: 'En curso',
+  NEEDS_INPUT: 'Requiere acción',
+  SAVED: 'Guardado',
+  DOCUMENTS_UPLOADED: 'Documentos subidos',
+  SENT: 'Enviado',
+  REGISTERED: 'Registrado',
+  ERROR: 'Error',
+};
+
+export const TRAMITACION_STEP_LABELS: Record<string, string> = {
+  LOGIN: 'Conectando al portal...',
+  CREATE_SOLICITUD: 'Creando solicitud...',
+  FILL_OCA_EICI: 'Seleccionando EICI...',
+  FILL_EMPLAZAMIENTO: 'Rellenando emplazamiento...',
+  FILL_TITULAR: 'Rellenando titular...',
+  FILL_DATOS_TECNICOS: 'Rellenando datos técnicos...',
+  SAVE: 'Guardando solicitud...',
+  UPLOAD_DOCUMENTS: 'Subiendo documentos...',
+  SEND: 'Enviando solicitud...',
+  VERIFY: 'Verificando envío...',
+};
+
+export const OCA_EICI_OPTIONS = [
+  { value: 'f2164508-5d30-49f7-a721-084039a78c0e', label: 'Ingeniería de Gestión Industrial (INGEIN)' },
+  { value: '3b424b82-2261-45d3-965e-bda0282e1669', label: 'Bureau Veritas (ECA)' },
+  { value: '26d7c29e-149e-4e87-b7ce-ca5a8130e40d', label: 'Inspecciones del Sureste (ISPEN)' },
+  { value: 'c5036225-0c3f-49c0-9301-3a237a629238', label: 'TÜV Rheinland' },
+  { value: 'cedba94d-96f3-41bf-9d87-394f54fcc2fd', label: 'NOVOCONTROL' },
+  { value: 'e1280b5b-06bb-472c-8dc5-dbbd9c3c4d0a', label: 'PROTEX' },
+  { value: '7de580e8-9f7b-48ae-9320-1a5c5e5441fc', label: 'ALDEC' },
+  { value: 'b5d36aeb-5de9-453f-b4de-45bbc395a0a5', label: 'ADDIENT' },
+  { value: '5eb2e755-0251-4565-8e97-1e84b2b2cd41', label: 'Tüv Süd ATISAE' },
+];

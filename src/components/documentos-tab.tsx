@@ -14,6 +14,7 @@ import {
 import { UnifilarEditor } from '@/components/unifilar/unifilar-editor';
 import { UpgradeModal } from '@/components/upgrade-modal';
 import { CertificateConfirmationModal } from '@/components/legal/certificate-confirmation-modal';
+import { TramitacionPanel } from '@/components/tramitacion-panel';
 import { consentApi } from '@/lib/api-client';
 import { LEGAL_VERSIONS } from '@/lib/legal-versions';
 
@@ -370,6 +371,15 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
           </div>
         )}
       </div>
+
+      {/* ════════════════════════════════════════════════════════ */}
+      {/* TRAMITACIÓN ASEICAM                                      */}
+      {/* ════════════════════════════════════════════════════════ */}
+      <TramitacionPanel
+        installationId={installationId}
+        installationName={installation?.titularName || installation?.referencia}
+        hasRequiredDocs={documents.some((d) => d.type === 'CERTIFICADO') && documents.some((d) => d.type === 'MEMORIA_TECNICA')}
+      />
 
       {/* ════════════════════════════════════════════════════════ */}
       {/* UNIFILAR EDITOR — Fullscreen Modal                      */}

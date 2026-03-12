@@ -6,6 +6,7 @@ import type {
   Circuit, CreateCircuitDto, CalculationResult, LoginDto, RegisterDto,
   Document, ElectricalPanel, SavePanelWithDifferentialsDto, UsageData,
   WaitlistDto, Installer, Technician, CreateInstallerDto, CreateTechnicianDto,
+  TramitacionExpediente, TramitacionConfig,
 } from './types';
 
 let accessToken: string | null = null;
@@ -183,6 +184,35 @@ export const tenantApi = {
   async updateProfile(dto: Record<string, any>): Promise<any> { const { data } = await api.put('/tenant/profile', dto); return data; },
   async getInstallers(): Promise<any[]> { const { data } = await api.get('/tenant/installers'); return data; },
   async updateInstaller(userId: string, dto: Record<string, any>): Promise<any> { const { data } = await api.put(`/tenant/installers/${userId}`, dto); return data; },
+};
+
+export const tramitacionApi = {
+  async getConfig(): Promise<TramitacionConfig> {
+    const { data } = await api.get<TramitacionConfig>('/tramitacion/config');
+    return data;
+  },
+  async updateConfig(dto: { portalUsername?: string; portalPassword?: string; portalEiciId?: string; portalEiciName?: string }): Promise<void> {
+    await api.put('/tramitacion/config', dto);
+  },
+  async testConexion(): Promise<{ success: boolean; message: string }> {
+    const { data } = await api.post<{ success: boolean; message: string }>('/tramitacion/config/test', {}, { timeout: 30_000 });
+    return data;
+  },
+  async tramitar(installationId: string, dto?: { eiciId?: string }): Promise<{ expedienteId: string; status: string }> {
+    const { data } = await api.post(`/tramitacion/${installationId}/tramitar`, dto ?? {});
+    return data;
+  },
+  async getStatus(expedienteId: string): Promise<TramitacionExpediente> {
+    const { data } = await api.get<TramitacionExpediente>(`/tramitacion/${expedienteId}/status`);
+    return data;
+  },
+  async getExpedientes(installationId: string): Promise<TramitacionExpediente[]> {
+    const { data } = await api.get<TramitacionExpediente[]>(`/tramitacion/${installationId}/expedientes`);
+    return data;
+  },
+  async resolve(expedienteId: string, dto: { field: string; selectedValue: string; selectedLabel?: string }): Promise<void> {
+    await api.post(`/tramitacion/${expedienteId}/resolve`, dto);
+  },
 };
 
 export default api;

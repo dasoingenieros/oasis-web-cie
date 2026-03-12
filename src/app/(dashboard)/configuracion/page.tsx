@@ -5,17 +5,17 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { tenantApi, teamApi } from '@/lib/api-client';
-import type { Installer, Technician } from '@/lib/types';
+import { tenantApi, teamApi, tramitacionApi } from '@/lib/api-client';
+import type { Installer, Technician, TramitacionConfig } from '@/lib/types';
+import { OCA_EICI_OPTIONS } from '@/lib/types';
+import { TIPO_VIA_OPTIONS, PROVINCIA_OPTIONS, PROVINCIA_DEFAULT } from '@/lib/portal-constants';
+import { LocalidadCombobox } from '@/components/localidad-combobox';
 import {
   User, Building2, Shield, Wrench, Save, Loader2, CheckCircle2,
-  Pencil, Trash2, Plus, Star, GraduationCap, X,
+  Pencil, Trash2, Plus, Star, GraduationCap, X, Send, Eye, EyeOff, Wifi, XCircle,
 } from 'lucide-react';
 
-const TIPOS_VIA = [
-  'CALLE','ACCESO','ALAMEDA','AVENIDA','BAJADA','BULEVAR','CAMINO','CARRETERA',
-  'GLORIETA','GRAN VIA','PARQUE','PASAJE','PASEO','PLAZA','RONDA','TRAVESIA',
-];
+const TIPOS_VIA = TIPO_VIA_OPTIONS;
 
 const CATEGORIAS = ['Básica', 'Especialista'];
 
@@ -81,6 +81,18 @@ export default function ConfiguracionPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'installer' | 'technician'; id: string; nombre: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Portal ASEICAM state
+  const [portalUsername, setPortalUsername] = useState('');
+  const [portalPassword, setPortalPassword] = useState('');
+  const [portalEiciId, setPortalEiciId] = useState('');
+  const [portalDirty, setPortalDirty] = useState(false);
+  const [portalSaving, setPortalSaving] = useState(false);
+  const [portalSaved, setPortalSaved] = useState(false);
+  const [portalHasCredentials, setPortalHasCredentials] = useState(false);
+  const [portalTesting, setPortalTesting] = useState(false);
+  const [portalTestResult, setPortalTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
   // Load empresa
   useEffect(() => {
     tenantApi.getProfile()
@@ -101,6 +113,14 @@ export default function ConfiguracionPage() {
           empresaEmail: data.empresaEmail ?? '',
           distribuidoraHab: data.distribuidoraHab ?? '',
         });
+      })
+      .catch(console.error);
+
+    // Load portal config
+    tramitacionApi.getConfig()
+      .then((cfg) => {
+        setPortalHasCredentials(cfg.hasCredentials);
+        setPortalEiciId(cfg.portalEiciId ?? '');
       })
       .catch(console.error);
   }, []);
@@ -217,6 +237,44 @@ export default function ConfiguracionPage() {
     }
   };
 
+  // ─── Portal handlers ─────────────────────────────────────────────────────
+
+  const savePortal = async () => {
+    setPortalSaving(true);
+    try {
+      const dto: Record<string, string> = {};
+      if (portalUsername) dto.portalUsername = portalUsername;
+      if (portalPassword) dto.portalPassword = portalPassword;
+      if (portalEiciId) {
+        dto.portalEiciId = portalEiciId;
+        dto.portalEiciName = OCA_EICI_OPTIONS.find((o) => o.value === portalEiciId)?.label ?? '';
+      }
+      await tramitacionApi.updateConfig(dto);
+      setPortalDirty(false);
+      setPortalSaved(true);
+      setPortalHasCredentials(true);
+      setPortalPassword('');
+      setTimeout(() => setPortalSaved(false), 2000);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPortalSaving(false);
+    }
+  };
+
+  const testPortal = async () => {
+    setPortalTesting(true);
+    setPortalTestResult(null);
+    try {
+      const result = await tramitacionApi.testConexion();
+      setPortalTestResult(result);
+    } catch (err: any) {
+      setPortalTestResult({ success: false, message: err?.response?.data?.message || 'Error de conexión' });
+    } finally {
+      setPortalTesting(false);
+    }
+  };
+
   const setDefault = async (type: 'installer' | 'technician', id: string) => {
     try {
       if (type === 'installer') {
@@ -324,7 +382,7 @@ export default function ConfiguracionPage() {
               <label className={labelCls}>Tipo vía</label>
               <select className={selectCls} value={empresa.empresaTipoVia ?? ''} onChange={(e) => setE('empresaTipoVia', e.target.value)}>
                 <option value="">Seleccionar...</option>
-                {TIPOS_VIA.map((t) => <option key={t} value={t}>{t}</option>)}
+                {TIPOS_VIA.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div className="col-span-2">
@@ -339,11 +397,14 @@ export default function ConfiguracionPage() {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className={labelCls}>Localidad</label>
-              <input className={inputCls} value={empresa.empresaLocalidad ?? ''} onChange={(e) => setE('empresaLocalidad', e.target.value)} />
+              <LocalidadCombobox value={empresa.empresaLocalidad ?? ''} onChange={(v) => setE('empresaLocalidad', v)} />
             </div>
             <div>
               <label className={labelCls}>Provincia</label>
-              <input className={inputCls} value={empresa.empresaProvincia ?? ''} onChange={(e) => setE('empresaProvincia', e.target.value)} />
+              <select className={selectCls} value={empresa.empresaProvincia ?? ''} onChange={(e) => setE('empresaProvincia', e.target.value)}>
+                <option value="">Seleccionar...</option>
+                {PROVINCIA_OPTIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
             </div>
             <div>
               <label className={labelCls}>C.P.</label>
@@ -372,6 +433,99 @@ export default function ConfiguracionPage() {
                <><Save className="mr-2 h-3 w-3" />Guardar empresa</>}
             </Button>
             {empresaDirty && <span className="text-xs text-amber-600">Cambios sin guardar</span>}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* PORTAL DEL INSTALADOR (ASEICAM) */}
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-3 space-y-0">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+            <Send className="h-4 w-4 text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <CardTitle>Portal del Instalador (ASEICAM)</CardTitle>
+            <p className="text-xs text-surface-500 mt-0.5">Credenciales para tramitación automática de solicitudes</p>
+          </div>
+          {portalHasCredentials && (
+            <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+              <CheckCircle2 className="h-3.5 w-3.5" />Configurado
+            </span>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Usuario del portal</label>
+              <input
+                className={inputCls}
+                value={portalUsername}
+                onChange={(e) => { setPortalUsername(e.target.value); setPortalDirty(true); }}
+                placeholder={portalHasCredentials ? '••••••••' : 'Tu usuario ASEICAM'}
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Contraseña del portal</label>
+              <div className="relative">
+                <input
+                  className={inputCls}
+                  type={showPassword ? 'text' : 'password'}
+                  value={portalPassword}
+                  onChange={(e) => { setPortalPassword(e.target.value); setPortalDirty(true); }}
+                  placeholder={portalHasCredentials ? '••••••••' : 'Tu contraseña'}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>OCA / EICI preferida</label>
+            <select
+              className={selectCls}
+              value={portalEiciId}
+              onChange={(e) => { setPortalEiciId(e.target.value); setPortalDirty(true); }}
+            >
+              <option value="">Seleccionar EICI...</option>
+              {OCA_EICI_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Test result */}
+          {portalTestResult && (
+            <div className={`rounded-lg border p-3 flex items-center gap-2 ${
+              portalTestResult.success
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-red-200 bg-red-50 text-red-700'
+            }`}>
+              {portalTestResult.success
+                ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                : <XCircle className="h-4 w-4 flex-shrink-0" />}
+              <p className="text-sm">{portalTestResult.message}</p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 border-t border-surface-200 pt-4">
+            <Button size="sm" onClick={savePortal} disabled={portalSaving || !portalDirty}>
+              {portalSaving ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" />Guardando...</> :
+               portalSaved ? <><CheckCircle2 className="mr-2 h-3 w-3 text-emerald-500" />Guardado</> :
+               <><Save className="mr-2 h-3 w-3" />Guardar credenciales</>}
+            </Button>
+            <Button size="sm" variant="outline" onClick={testPortal} disabled={portalTesting || !portalHasCredentials}>
+              {portalTesting ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" />Probando...</> :
+               <><Wifi className="mr-2 h-3 w-3" />Probar conexión</>}
+            </Button>
+            {portalDirty && <span className="text-xs text-amber-600">Cambios sin guardar</span>}
           </div>
         </CardContent>
       </Card>
@@ -599,11 +753,14 @@ export default function ConfiguracionPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className={labelCls}>Localidad</label>
-                  <input className={inputCls} value={modalData.localidad ?? ''} onChange={(e) => setModalData((p) => ({ ...p, localidad: e.target.value }))} />
+                  <LocalidadCombobox value={modalData.localidad ?? ''} onChange={(v) => setModalData((p) => ({ ...p, localidad: v }))} />
                 </div>
                 <div>
                   <label className={labelCls}>Provincia</label>
-                  <input className={inputCls} value={modalData.provincia ?? ''} onChange={(e) => setModalData((p) => ({ ...p, provincia: e.target.value }))} />
+                  <select className={selectCls} value={modalData.provincia ?? ''} onChange={(e) => setModalData((p) => ({ ...p, provincia: e.target.value }))}>
+                    <option value="">Seleccionar...</option>
+                    {PROVINCIA_OPTIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className={labelCls}>C.P.</label>
