@@ -577,13 +577,24 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
     if (templates.length === 0) return;
     const newRows = templates.map((t, i) => templateToRow(t, i + 1));
     setRows(newRows);
-    // Auto-create one differential with all circuits
-    const diffId = nextDiffKey();
-    setDiffs([{
-      localId: diffId, name: 'Diferencial 1', order: 1,
-      calibreA: 40, sensitivityMa: 30, type: 'AC', poles: iga.poles,
-      circuitKeys: newRows.map((r) => r.key), expanded: true,
-    }]);
+    // ITC-BT-25: max 5 circuits per differential — distribute automatically
+    const newDiffs: DiffState[] = [];
+    for (let i = 0; i < newRows.length; i += MAX_CIRCUITS_PER_DIFF_VIVIENDA) {
+      const chunk = newRows.slice(i, i + MAX_CIRCUITS_PER_DIFF_VIVIENDA);
+      const diffOrder = Math.floor(i / MAX_CIRCUITS_PER_DIFF_VIVIENDA) + 1;
+      newDiffs.push({
+        localId: nextDiffKey(),
+        name: `Diferencial ${diffOrder}`,
+        order: diffOrder,
+        calibreA: 40,
+        sensitivityMa: 30,
+        type: 'AC',
+        poles: iga.poles,
+        circuitKeys: chunk.map((r) => r.key),
+        expanded: true,
+      });
+    }
+    setDiffs(newDiffs);
     setDirty(true);
   }, [supplyType, iga.poles]);
 
@@ -750,7 +761,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-[100px] text-right">CdT%</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-12 text-center">PIA<br/><span className="font-normal text-surface-400">A</span></th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-10 text-center">Man.</th>
-              {diffIdx === null && diffs.length > 0 && <th className="px-1.5 py-1.5 font-medium text-surface-700 w-24 text-center">Dif.</th>}
+              {(diffIdx === null ? diffs.length > 0 : diffs.length > 1) && <th className="px-1.5 py-1.5 font-medium text-surface-700 w-24 text-center">{diffIdx === null ? 'Dif.' : 'Mover'}</th>}
               <th className="px-1.5 py-1.5 w-7" />
             </tr>
           </thead>
@@ -878,12 +889,17 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                         </button>
                       )}
                     </td>
-                    {/* Move-to-diff dropdown (only in unassigned section) */}
-                    {diffIdx === null && diffs.length > 0 && (
+                    {/* Move-to-diff dropdown */}
+                    {(diffIdx === null ? diffs.length > 0 : diffs.length > 1) && (
                       <td className="px-1.5 py-1 text-center">
-                        <select value="" onChange={(e) => { if (e.target.value) moveCircuit(row.key, Number(e.target.value)); }} className={`${selectCls} w-24 text-[10px]`}>
-                          <option value="">Asignar…</option>
-                          {diffs.map((d, i) => <option key={d.localId} value={i}>{d.name}</option>)}
+                        <select value="" onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === '_unassign') moveCircuit(row.key, null);
+                          else if (v) moveCircuit(row.key, Number(v));
+                        }} className={`${selectCls} w-24 text-[10px]`}>
+                          <option value="">{diffIdx === null ? 'Asignar…' : 'Mover…'}</option>
+                          {diffs.map((d, i) => i !== diffIdx ? <option key={d.localId} value={i}>{d.name}</option> : null)}
+                          {diffIdx !== null && <option value="_unassign">Sin asignar</option>}
                         </select>
                       </td>
                     )}
@@ -896,7 +912,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                   {/* Maniobra sub-row */}
                   {expandedManiobra.has(row.key) && (
                     <tr className="bg-blue-500/5 border-b border-surface-600">
-                      <td colSpan={diffIdx === null && diffs.length > 0 ? 18 : 17} className="px-3 py-2">
+                      <td colSpan={(diffIdx === null ? diffs.length > 0 : diffs.length > 1) ? 18 : 17} className="px-3 py-2">
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2 text-xs">
                             <span className="font-medium text-surface-500">Cadena maniobra:</span>
@@ -967,7 +983,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                   {/* Justification sub-row */}
                   {expandedJustification.has(row.key) && hasJustification && (
                     <tr>
-                      <td colSpan={diffIdx === null && diffs.length > 0 ? 18 : 17} className="p-0">
+                      <td colSpan={(diffIdx === null ? diffs.length > 0 : diffs.length > 1) ? 18 : 17} className="p-0">
                         <div className="bg-surface-50 border-t border-surface-200 px-6 py-4">
                           <div className="flex items-center gap-2 mb-3">
                             <Info className="h-4 w-4 text-blue-600" />
