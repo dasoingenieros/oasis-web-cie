@@ -761,8 +761,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-[100px] text-right">CdT%</th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-12 text-center">PIA<br/><span className="font-normal text-surface-400">A</span></th>
               <th className="px-1.5 py-1.5 font-medium text-surface-700 w-10 text-center">Man.</th>
-              {diffs.length > 0 && <th className="px-1.5 py-1.5 font-medium text-surface-700 w-28 text-center">{diffIdx === null ? 'Dif.' : 'Mover'}</th>}
-              <th className="px-1.5 py-1.5 w-7" />
+                            <th className="px-1.5 py-1.5 w-7" />
             </tr>
           </thead>
           <tbody>
@@ -889,30 +888,30 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                         </button>
                       )}
                     </td>
-                    {/* Move-to-diff dropdown */}
-                    {diffs.length > 0 && (
-                      <td className="px-1.5 py-1 text-center">
-                        <select value="" onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === '_unassign') moveCircuit(row.key, null);
-                          else if (v) moveCircuit(row.key, Number(v));
-                        }} className={`${selectCls} w-28 text-[10px]`}>
-                          <option value="">{diffIdx === null ? 'Asignar…' : 'Mover a…'}</option>
-                          {diffs.map((d, i) => i !== diffIdx ? <option key={d.localId} value={i}>{d.name}</option> : null)}
-                          {diffIdx !== null && <option value="_unassign">Sin asignar</option>}
-                        </select>
-                      </td>
-                    )}
                     <td className="px-1.5 py-1">
-                      <button onClick={() => removeRow(row.key)} className="rounded p-0.5 text-surface-400 transition-colors hover:bg-red-50 hover:text-red-600" title="Eliminar">
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                      <div className="flex items-center gap-0.5">
+                        {/* Move-to-diff dropdown */}
+                        {diffs.length > 0 && (
+                          <select value="" onChange={(e) => {
+                            const v = e.target.value;
+                            if (v === '_unassign') moveCircuit(row.key, null);
+                            else if (v) moveCircuit(row.key, Number(v));
+                          }} className="h-6 w-6 rounded border border-surface-300 bg-white text-[0px] cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M8%203H5a2%202%200%200%200-2%202v3m18%200V5a2%202%200%200%200-2-2h-3m0%2018h3a2%202%200%200%200%202-2v-3M3%2016v3a2%202%200%200%200%202%202h3%22%2F%3E%3C%2Fsvg%3E')] bg-center bg-no-repeat bg-[length:12px]" title={diffIdx === null ? 'Asignar a diferencial' : 'Mover a otro diferencial'}>
+                            <option value="">{diffIdx === null ? 'Asignar…' : 'Mover a…'}</option>
+                            {diffs.map((d, i) => i !== diffIdx ? <option key={d.localId} value={i} className="text-xs">{d.name}</option> : null)}
+                            {diffIdx !== null && <option value="_unassign" className="text-xs">Sin asignar</option>}
+                          </select>
+                        )}
+                        <button onClick={() => removeRow(row.key)} className="rounded p-0.5 text-surface-400 transition-colors hover:bg-red-50 hover:text-red-600" title="Eliminar">
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   {/* Maniobra sub-row */}
                   {expandedManiobra.has(row.key) && (
                     <tr className="bg-blue-500/5 border-b border-surface-600">
-                      <td colSpan={diffs.length > 0 ? 18 : 17} className="px-3 py-2">
+                      <td colSpan={17} className="px-3 py-2">
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2 text-xs">
                             <span className="font-medium text-surface-500">Cadena maniobra:</span>
@@ -983,7 +982,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
                   {/* Justification sub-row */}
                   {expandedJustification.has(row.key) && hasJustification && (
                     <tr>
-                      <td colSpan={diffs.length > 0 ? 18 : 17} className="p-0">
+                      <td colSpan={17} className="p-0">
                         <div className="bg-surface-50 border-t border-surface-200 px-6 py-4">
                           <div className="flex items-center gap-2 mb-3">
                             <Info className="h-4 w-4 text-blue-600" />
