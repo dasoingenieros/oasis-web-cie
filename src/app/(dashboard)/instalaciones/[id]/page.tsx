@@ -134,7 +134,7 @@ export default function InstallationDetailPage() {
     isCalculating,
     error,
     updateInstallation,
-    saveCircuits,
+    refetchCircuits,
     calculate,
     calculateSupply,
     refetch,
@@ -217,8 +217,11 @@ export default function InstallationDetailPage() {
     await updateInstallation(data);
   };
 
-  const handleSaveCircuits = async (dtos: CreateCircuitDto[]) => {
-    return await saveCircuits(dtos);
+  const handleSaveCircuits = async (_dtos: CreateCircuitDto[]) => {
+    // Circuits already saved atomically via panelsApi.saveAll() in CuadroForm.
+    // Just refetch from server to sync parent state (don't call replaceAll which
+    // would destroy the differential assignments created by saveAll).
+    return await refetchCircuits();
   };
 
   const handleCalculate = async (): Promise<boolean> => {

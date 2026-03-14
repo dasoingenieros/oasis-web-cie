@@ -67,6 +67,16 @@ export function useInstallation(id: string) {
     [id],
   );
 
+  // Refetch circuits from server (without replacing — used after saveAll)
+  const refetchCircuits = useCallback(
+    async (): Promise<Circuit[]> => {
+      const circs = await circuitsApi.list(id);
+      setCircuits(circs);
+      return circs;
+    },
+    [id],
+  );
+
   // Run circuit calculation (read-only — does not modify circuit records)
   const calculate = useCallback(async (): Promise<CalculationResult> => {
     setIsCalculating(true);
@@ -113,6 +123,7 @@ export function useInstallation(id: string) {
     refetch: fetch,
     updateInstallation,
     saveCircuits,
+    refetchCircuits,
     calculate,
     calculateSupply,
   };
