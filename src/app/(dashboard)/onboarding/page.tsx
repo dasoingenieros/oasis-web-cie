@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onboardingApi } from '@/lib/api-client';
 import { Zap, Building2, HardHat, Gift, ChevronRight, ChevronLeft, Check, Loader2 } from 'lucide-react';
+import { PROVINCIA_OPTIONS, PROVINCIA_DEFAULT } from '@/lib/portal-constants';
+import { LocalidadCombobox } from '@/components/localidad-combobox';
 
 type Step = 1 | 2 | 3;
 
@@ -19,7 +21,7 @@ export default function OnboardingPage() {
     empresaNombre: '',
     empresaNombreVia: '',
     empresaLocalidad: '',
-    empresaProvincia: '',
+    empresaProvincia: PROVINCIA_DEFAULT,
     empresaTelefono: '',
     empresaEmail: '',
   });
@@ -142,11 +144,14 @@ export default function OnboardingPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm text-surface-600 mb-1">Localidad</label>
-                    <input className={inputCls} placeholder="Madrid" value={company.empresaLocalidad} onChange={(e) => setCompany({ ...company, empresaLocalidad: e.target.value })} />
+                    <LocalidadCombobox value={company.empresaLocalidad} onChange={(v) => setCompany({ ...company, empresaLocalidad: v })} />
                   </div>
                   <div>
                     <label className="block text-sm text-surface-600 mb-1">Provincia</label>
-                    <input className={inputCls} placeholder="Madrid" value={company.empresaProvincia} onChange={(e) => setCompany({ ...company, empresaProvincia: e.target.value })} />
+                    <select className={inputCls} value={company.empresaProvincia} onChange={(e) => setCompany({ ...company, empresaProvincia: e.target.value })}>
+                      <option value="">Seleccionar...</option>
+                      {PROVINCIA_OPTIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                    </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">

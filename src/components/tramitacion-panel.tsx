@@ -179,20 +179,30 @@ export function TramitacionPanel({
 
   const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
 
-  const handleResolve = async () => {
-    if (!activeExp || !selectedCandidate || !activeExp.needsInputData) return;
-    const candidate = activeExp.needsInputData.candidates.find(
-      (c) => c.uuid === selectedCandidate,
-    );
-    if (!candidate) return;
+  const handleResolve = async (manualSearchTerm?: string) => {
+    if (!activeExp || !activeExp.needsInputData) return;
 
     setError(null);
     try {
-      await tramitacionApi.resolve(activeExp.id, {
-        field: activeExp.needsInputData.field,
-        selectedValue: candidate.uuid,
-        selectedLabel: candidate.label,
-      });
+      if (manualSearchTerm) {
+        // Búsqueda manual — reintentar con nuevo término
+        await tramitacionApi.resolve(activeExp.id, {
+          field: activeExp.needsInputData.field,
+          searchTerm: manualSearchTerm,
+        });
+      } else {
+        // Selección de candidato
+        if (!selectedCandidate) return;
+        const candidate = activeExp.needsInputData.candidates.find(
+          (c) => c.uuid === selectedCandidate,
+        );
+        if (!candidate) return;
+        await tramitacionApi.resolve(activeExp.id, {
+          field: activeExp.needsInputData.field,
+          selectedValue: candidate.uuid,
+          selectedLabel: candidate.label,
+        });
+      }
       // Resume polling
       setActiveExp((prev) => prev ? { ...prev, status: 'QUEUED', progress: 0, needsInputData: null } as TramitacionExpediente : null);
       startPolling(activeExp.id);
@@ -443,55 +453,80 @@ function NeedsInputView({
   data: NonNullable<TramitacionExpediente['needsInputData']>;
   selectedCandidate: string | null;
   onSelect: (uuid: string) => void;
-  onConfirm: () => void;
+  onConfirm: (manualSearchTerm?: string) => void;
 }) {
+  const [manualTerm, setManualTerm] = useState('');
   const fieldLabel = data.field === 'via' ? 'vía del emplazamiento' : 'vía del titular';
+  const hasCandidates = data.candidates.length > 0;
 
   return (
     <div className="space-y-3">
       <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
         <p className="text-sm text-amber-800">
-          No se encontró coincidencia exacta para la <strong>{fieldLabel}</strong>. Selecciona la correcta:
+          {hasCandidates
+            ? <>No se encontró coincidencia exacta para la <strong>{fieldLabel}</strong>. Selecciona la correcta:</>
+            : <>No se encontraron resultados para la <strong>{fieldLabel}</strong>
+              {data.searchTerm ? <> (buscado: &quot;{data.searchTerm}&quot;)</> : null}.
+              Escribe el nombre de la vía para buscar de nuevo:</>
+          }
         </p>
       </div>
 
-      <div className="max-h-64 overflow-y-auto space-y-1">
-        {data.candidates.map((c) => (
-          <label
-            key={c.uuid}
-            className={cn(
-              'flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors',
-              selectedCandidate === c.uuid
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-surface-200 bg-white hover:border-surface-300',
-            )}
-          >
-            <input
-              type="radio"
-              name="recono-candidate"
-              value={c.uuid}
-              checked={selectedCandidate === c.uuid}
-              onChange={() => onSelect(c.uuid)}
-              className="h-4 w-4 text-blue-600 border-surface-300 focus:ring-blue-500"
-            />
-            <span className="flex-1 text-sm text-surface-700">{c.label}</span>
-            {c.confidence > 0 && (
-              <span className={cn(
-                'text-xs font-medium px-1.5 py-0.5 rounded',
-                c.confidence >= 80 ? 'bg-emerald-100 text-emerald-700' :
-                c.confidence >= 50 ? 'bg-amber-100 text-amber-700' :
-                'bg-surface-100 text-surface-500',
-              )}>
-                {c.confidence}%
-              </span>
-            )}
-          </label>
-        ))}
-      </div>
+      {hasCandidates ? (
+        <>
+          <div className="max-h-64 overflow-y-auto space-y-1">
+            {data.candidates.map((c) => (
+              <label
+                key={c.uuid}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors',
+                  selectedCandidate === c.uuid
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-surface-200 bg-white hover:border-surface-300',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="recono-candidate"
+                  value={c.uuid}
+                  checked={selectedCandidate === c.uuid}
+                  onChange={() => onSelect(c.uuid)}
+                  className="h-4 w-4 text-blue-600 border-surface-300 focus:ring-blue-500"
+                />
+                <span className="flex-1 text-sm text-surface-700">{c.label}</span>
+                {c.confidence > 0 && (
+                  <span className={cn(
+                    'text-xs font-medium px-1.5 py-0.5 rounded',
+                    c.confidence >= 80 ? 'bg-emerald-100 text-emerald-700' :
+                    c.confidence >= 50 ? 'bg-amber-100 text-amber-700' :
+                    'bg-surface-100 text-surface-500',
+                  )}>
+                    {c.confidence}%
+                  </span>
+                )}
+              </label>
+            ))}
+          </div>
 
-      <Button size="sm" onClick={onConfirm} disabled={!selectedCandidate}>
-        <CheckCircle2 className="mr-2 h-3 w-3" />Confirmar selección
-      </Button>
+          <Button size="sm" onClick={() => onConfirm()} disabled={!selectedCandidate}>
+            <CheckCircle2 className="mr-2 h-3 w-3" />Confirmar selección
+          </Button>
+        </>
+      ) : (
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={manualTerm}
+            onChange={(e) => setManualTerm(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && manualTerm.trim()) onConfirm(manualTerm.trim()); }}
+            placeholder="Ej: DE LA HABANA"
+            className="flex-1 rounded-lg border border-surface-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+          />
+          <Button size="sm" onClick={() => onConfirm(manualTerm.trim())} disabled={!manualTerm.trim()}>
+            <RefreshCw className="mr-2 h-3 w-3" />Reintentar
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

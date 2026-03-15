@@ -6,7 +6,8 @@ import type {
   Circuit, CreateCircuitDto, CalculationResult, LoginDto, RegisterDto,
   Document, ElectricalPanel, SavePanelWithDifferentialsDto, UsageData,
   WaitlistDto, Installer, Technician, CreateInstallerDto, CreateTechnicianDto,
-  TramitacionExpediente, TramitacionConfig,
+  TramitacionExpediente, TramitacionConfig, FeedbackReport, ReviewStatus,
+  PanelNode, CreatePanelNodeDto,
 } from './types';
 
 let accessToken: string | null = null;
@@ -129,6 +130,55 @@ export const documentsApi = {
   async generateSolicitud(installationId: string, format: 'docx' | 'pdf' = 'docx'): Promise<Blob> { const { data } = await api.post(`/installations/${installationId}/documents/generate-solicitud?format=${format}`, {}, { responseType: 'blob', timeout: 60_000 }); return data; },
   async download(installationId: string, documentId: string): Promise<Blob> { const { data } = await api.get(`/installations/${installationId}/documents/${documentId}/download`, { responseType: 'blob' }); return data; },
   async remove(installationId: string, documentId: string): Promise<void> { await api.delete(`/installations/${installationId}/documents/${documentId}`); },
+  async uploadSigned(installationId: string, documentId: string, file: File, signerName?: string): Promise<Document> {
+    const form = new FormData();
+    form.append('file', file);
+    if (signerName) form.append('signerName', signerName);
+    const { data } = await api.post<Document>(
+      `/installations/${installationId}/documents/${documentId}/upload-signed`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30_000 },
+    );
+    return data;
+  },
+  async downloadSigned(installationId: string, documentId: string): Promise<Blob> {
+    const { data } = await api.get(
+      `/installations/${installationId}/documents/${documentId}/download-signed`,
+      { responseType: 'blob' },
+    );
+    return data;
+  },
+  async approve(installationId: string, documentId: string): Promise<Document> {
+    const { data } = await api.post<Document>(
+      `/installations/${installationId}/documents/${documentId}/approve`,
+    );
+    return data;
+  },
+  async updateReviewStatus(installationId: string, documentId: string, reviewStatus: ReviewStatus, reviewNote?: string): Promise<Document> {
+    const { data } = await api.patch<Document>(
+      `/installations/${installationId}/documents/${documentId}/review-status`,
+      { reviewStatus, reviewNote },
+    );
+    return data;
+  },
+  async report(installationId: string, documentId: string, description: string, screenshot?: File): Promise<FeedbackReport> {
+    const form = new FormData();
+    form.append('description', description);
+    if (screenshot) form.append('screenshot', screenshot);
+    const { data } = await api.post<FeedbackReport>(
+      `/installations/${installationId}/documents/${documentId}/report`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return data;
+  },
+  async preview(installationId: string, documentId: string): Promise<Blob> {
+    const { data } = await api.get(
+      `/installations/${installationId}/documents/${documentId}/preview`,
+      { responseType: 'blob' },
+    );
+    return data;
+  },
 };
 
 export const panelsApi = {
@@ -137,6 +187,15 @@ export const panelsApi = {
   async saveAll(installationId: string, dto: { circuits: any[]; panel: SavePanelWithDifferentialsDto; installationUpdates?: Record<string, any> }): Promise<{ circuits: Circuit[]; panel: ElectricalPanel }> { const { data } = await api.put(`/installations/${installationId}/panel/save-all`, dto); return data; },
   async createFromTemplate(installationId: string): Promise<ElectricalPanel> { const { data } = await api.post<ElectricalPanel>(`/installations/${installationId}/panel/template`); return data; },
   async reset(installationId: string): Promise<void> { await api.delete(`/installations/${installationId}/panel/reset`); },
+};
+
+export const panelNodesApi = {
+  async list(installationId: string): Promise<PanelNode[]> { const { data } = await api.get<PanelNode[]>(`/installations/${installationId}/panel-nodes`); return data; },
+  async create(installationId: string, dto: CreatePanelNodeDto): Promise<PanelNode> { const { data } = await api.post<PanelNode>(`/installations/${installationId}/panel-nodes`, dto); return data; },
+  async update(installationId: string, nodeId: string, dto: Partial<CreatePanelNodeDto>): Promise<PanelNode> { const { data } = await api.patch<PanelNode>(`/installations/${installationId}/panel-nodes/${nodeId}`, dto); return data; },
+  async move(installationId: string, nodeId: string, dto: { newParentId?: string | null; newPosition: number }): Promise<PanelNode> { const { data } = await api.patch<PanelNode>(`/installations/${installationId}/panel-nodes/${nodeId}/move`, dto); return data; },
+  async delete(installationId: string, nodeId: string): Promise<void> { await api.delete(`/installations/${installationId}/panel-nodes/${nodeId}`); },
+  async migrateV1(installationId: string): Promise<PanelNode[]> { const { data } = await api.post<PanelNode[]>(`/installations/${installationId}/panel-nodes/migrate-v1`); return data; },
 };
 
 export const unifilarApi = {
@@ -210,7 +269,7 @@ export const tramitacionApi = {
     const { data } = await api.get<TramitacionExpediente[]>(`/tramitacion/${installationId}/expedientes`);
     return data;
   },
-  async resolve(expedienteId: string, dto: { field: string; selectedValue: string; selectedLabel?: string }): Promise<void> {
+  async resolve(expedienteId: string, dto: { field: string; selectedValue?: string; selectedLabel?: string; searchTerm?: string }): Promise<void> {
     await api.post(`/tramitacion/${expedienteId}/resolve`, dto);
   },
 };

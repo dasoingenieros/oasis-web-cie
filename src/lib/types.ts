@@ -290,6 +290,8 @@ export interface CalculationResult {
 
 // ─── Document ────────────────────────────────────────────────
 
+export type ReviewStatus = 'PENDING' | 'APPROVED' | 'NEEDS_REVIEW' | 'REPORTED';
+
 export interface Document {
   id: string;
   installationId: string;
@@ -301,7 +303,33 @@ export interface Document {
   isDraft: boolean;
   generatedAt: string;
   version?: number;
+  signedAt?: string | null;
+  signedFileUrl?: string | null;
+  signerName?: string | null;
+  reviewStatus?: ReviewStatus;
+  reviewedAt?: string | null;
+  reviewNote?: string | null;
 }
+
+export interface FeedbackReport {
+  id: string;
+  tenantId: string;
+  installationId: string;
+  documentId?: string | null;
+  documentType?: string | null;
+  description: string;
+  screenshotKey?: string | null;
+  status: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
+  PENDING: 'Pendiente revisión',
+  APPROVED: 'Pendiente firma',
+  NEEDS_REVIEW: 'Datos incorrectos',
+  REPORTED: 'Error reportado',
+};
 
 // ─── API Response wrappers ───────────────────────────────────
 
@@ -424,6 +452,85 @@ export interface CreateTechnicianDto {
   isDefault?: boolean;
 }
 
+// ─── Panel Node (Cuadro v2) ──────────────────────────────────
+
+export type PanelNodeType =
+  | 'IGA'
+  | 'PROTECTOR_SOBRETENSIONES'
+  | 'AUTOMATICO'
+  | 'DIFERENCIAL'
+  | 'GUARDAMOTOR'
+  | 'CONTACTOR'
+  | 'SUBCUADRO'
+  | 'CIRCUITO';
+
+export type ContactorType = 'HORARIO' | 'MANIOBRA' | 'POTENCIA';
+export type DiffType = 'AC' | 'A' | 'B' | 'F';
+
+export interface PanelNode {
+  id: string;
+  tenantId: string;
+  installationId: string;
+  parentId: string | null;
+  position: number;
+  nodeType: PanelNodeType;
+  name: string | null;
+  // Protection fields
+  calibreA: number | null;
+  polos: number | null;
+  curva: string | null;
+  poderCorteKa: number | null;
+  // Differential fields
+  sensitivityMa: number | null;
+  diffType: string | null;
+  // Circuit fields
+  loadType: string | null;
+  power: number | null;
+  voltage: number | null;
+  phases: number | null;
+  cosPhi: number | null;
+  length: number | null;
+  section: number | null;
+  cableType: string | null;
+  material: string | null;
+  installMethod: string | null;
+  quantity: number | null;
+  // Subcuadro
+  subcuadroName: string | null;
+  // Contactor
+  contactorType: string | null;
+  // Calculated
+  calcResults: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePanelNodeDto {
+  nodeType: PanelNodeType;
+  parentId?: string | null;
+  position?: number;
+  name?: string;
+  calibreA?: number;
+  polos?: number;
+  curva?: string;
+  poderCorteKa?: number;
+  sensitivityMa?: number;
+  diffType?: string;
+  loadType?: string;
+  power?: number;
+  voltage?: number;
+  phases?: number;
+  cosPhi?: number;
+  length?: number;
+  section?: number;
+  cableType?: string;
+  material?: string;
+  installMethod?: string;
+  quantity?: number;
+  subcuadroName?: string;
+  contactorType?: string;
+}
+
 // ─── Helpers de formato ──────────────────────────────────────
 
 export function formatPower(watts: number): string {
@@ -491,6 +598,7 @@ export interface TramitacionExpediente {
   needsInputData: {
     field: string;
     candidates: { uuid: string; label: string; confidence: number }[];
+    searchTerm?: string;
     resolvedInputs?: Record<string, { value: string; label: string }>;
   } | null;
   attempts: number;

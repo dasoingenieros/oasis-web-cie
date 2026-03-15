@@ -8,6 +8,7 @@ import { DatosForm } from '@/components/datos-form';
 import type { DatosFormHandle, DatosFormState } from '@/components/datos-form';
 import { CuadroForm } from '@/components/cuadro-form';
 import type { CuadroFormHandle } from '@/components/cuadro-form';
+import { CuadroV2Tab } from '@/components/cuadro-v2/cuadro-v2-tab';
 import { DocumentosTab } from '@/components/documentos-tab';
 import type { DocumentosTabHandle } from '@/components/documentos-tab';
 import { Button } from '@/components/ui/button';
@@ -28,9 +29,10 @@ import {
   Save,
   Plus,
   Trash2,
+  Network,
 } from 'lucide-react';
 
-type Tab = 'datos' | 'cuadro' | 'documentos';
+type Tab = 'datos' | 'cuadro' | 'cuadro_v2' | 'documentos';
 
 function SupplyResultBanner({ result, panel }: { result: any; panel?: any }) {
   if (!result) return null;
@@ -246,6 +248,12 @@ export default function InstallationDetailPage() {
       badge: circuits.length > 0 ? String(circuits.length) : undefined,
       disabled: isProyecto,
     },
+    {
+      id: 'cuadro_v2',
+      label: 'Cuadro v2',
+      icon: Network,
+      disabled: isProyecto,
+    },
     { id: 'documentos', label: 'Documentos', icon: FileDown, disabled: isProyecto },
   ];
 
@@ -394,6 +402,10 @@ export default function InstallationDetailPage() {
           </>
         )}
 
+        {activeTab === 'cuadro_v2' && (
+          <span className="text-xs text-surface-500">Cuadro eléctrico v2 — Vista de árbol</span>
+        )}
+
         {activeTab === 'documentos' && (
           <>
             <span className="text-xs text-surface-500">
@@ -465,6 +477,10 @@ export default function InstallationDetailPage() {
           </div>
         )}
 
+        {activeTab === 'cuadro_v2' && !isProyecto && (
+          <CuadroV2Tab installationId={id} />
+        )}
+
         {activeTab === 'documentos' && !isProyecto && (
           <div className="rounded-lg border border-surface-200 bg-white p-6">
             <DocumentosTab
@@ -473,6 +489,12 @@ export default function InstallationDetailPage() {
               calculation={calculation}
               installation={installation}
               onDocCountChange={setDocumentCount}
+              onNavigateToSection={(tab, sectionNum) => {
+                setActiveTab(tab as Tab);
+                if (tab === 'datos' && sectionNum != null) {
+                  setTimeout(() => datosRef.current?.scrollToSection(sectionNum), 200);
+                }
+              }}
             />
           </div>
         )}

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Save, Loader2, CheckCircle2, ChevronDown, ChevronRight, AlertTriangle, Lock, HelpCircle, Info, UserCheck, ExternalLink } from 'lucide-react';
 import { getInstallationType } from '@/lib/installation-types';
+import { TIPO_VIA_OPTIONS, PROVINCIA_OPTIONS, PROVINCIA_DEFAULT, LOCALIDAD_MADRID_OPTIONS, TIPO_SUMINISTRO_OPTIONS, TENSION_SUMINISTRO_OPTIONS, tipoSuministroFromVoltage, TIPO_DOCUMENTO_OPTIONS } from '@/lib/portal-constants';
 
 // ─── Campos que intervienen en cálculos (bloqueados tras calcular) ───
 const CALC_LOCKED_FIELDS = new Set([
@@ -54,7 +55,12 @@ function getSpecialValidations(data: Record<string, any>): { field: string; ok: 
   ];
 }
 
-const TIPOS_VIA = ['CALLE','ACCESO','ACUEDUCTO','ALAMEDA','ALTO','AVENIDA','BAJADA','BARRANCO','BULEVAR','CALLEJA','CALLEJON','CAMINO','CARRERA','CARRETERA','COLONIA','COSTANILLA','CUESTA','FINCA','GLORIETA','GRAN VIA','PARAJE','PARCELA','PARQUE','PASADIZO','PASAJE','PASEO','PLAZA','PLAZUELA','POLIGONO','RINCON','RONDA','ROTONDA','SECTOR','SENDA','TRASERA','TRAVESIA'];
+const TIPOS_VIA: Array<{ value: string; label: string }> = [...TIPO_VIA_OPTIONS];
+const PROVINCIA_OPTS: Array<{ value: string; label: string }> = [...PROVINCIA_OPTIONS];
+const LOCALIDAD_OPTIONS: Array<{ value: string; label: string }> = [...LOCALIDAD_MADRID_OPTIONS];
+const SUMINISTRO_OPTS: Array<{ value: string; label: string }> = [...TIPO_SUMINISTRO_OPTIONS];
+const DOCUMENTO_OPTS: Array<{ value: string; label: string }> = [...TIPO_DOCUMENTO_OPTIONS];
+const TENSION_OPTS: Array<{ value: string; label: string }> = [...TENSION_SUMINISTRO_OPTIONS];
 const TIPOS_ACTUACION = [{ value: 'Nueva', label: 'Nueva' },{ value: 'Modificación', label: 'Modificación' },{ value: 'Ampliación con o sin modif.', label: 'Ampliación con o sin modif.' }];
 const ACTUACION_NORMALIZE: Record<string, string> = { NUEVA: 'Nueva', N: 'Nueva', MODIFICACION: 'Modificación', M: 'Modificación', AMPLIACION: 'Ampliación con o sin modif.', A: 'Ampliación con o sin modif.' };
 const PUNTOS_CONEXION = [{ value: 'RBT', label: 'RBT — Red de Baja Tensión' },{ value: 'CT', label: 'CT — Centro de Transformación' },{ value: 'IA', label: 'IA — Instalación Aislada' }];
@@ -239,7 +245,7 @@ function computeGrado(supplyType: string, potMaxAdmisibleKw: number | string): s
 }
 
 export interface DatosFormState { percent: number; filled: number; total: number; dirty: boolean; }
-export interface DatosFormHandle { save: () => Promise<void>; }
+export interface DatosFormHandle { save: () => Promise<void>; scrollToSection: (sectionNum: number) => void; }
 interface DatosFormProps { installation: Installation; isSaving: boolean; onSave: (data: UpdateInstallationDto) => Promise<void>; onStateChange?: (state: DatosFormState) => void; }
 
 // ─── Campos obligatorios por sección (para indicador completitud) ───
@@ -261,7 +267,7 @@ const SECTION_SPECIAL_VALIDATIONS: Record<number, number[]> = { 2: [0], 11: [1] 
 function Section({ title, num, open, onToggle, children, badge, complete, pending }: { title: string; num: number; open: boolean; onToggle: () => void; children: React.ReactNode; badge?: React.ReactNode; complete?: boolean; pending?: number; }) {
   const isComplete = complete === true;
   return (
-    <section className="border border-surface-200 rounded-lg overflow-hidden">
+    <section id={`datos-section-${num}`} className="border border-surface-200 rounded-lg overflow-hidden">
       <button type="button" onClick={onToggle} className="flex items-center gap-3 w-full px-4 py-3 bg-surface-50 hover:bg-surface-100 transition-colors text-left">
         <span className={`flex items-center justify-center w-6 h-6 rounded-full text-white text-xs font-bold ${isComplete ? 'bg-emerald-600' : 'bg-blue-600'}`}>{isComplete ? '✓' : num}</span>
         <span className={`text-sm font-semibold flex-1 ${isComplete ? 'text-emerald-600' : 'text-surface-900'}`}>{title}</span>
@@ -291,7 +297,7 @@ const FIELD_HELP: Record<string, string> = {
   gradoElectrificacion: 'Se calcula automáticamente según ITC-BT-25. Básica: < 9.200 W. Elevada: ≥ 9.200 W.',
   usoInstalacion: 'Se rellena automáticamente desde el tipo de instalación CIE seleccionado. Coincide con el campo "Uso" de la MTD.',
   superficieM2: 'Superficie útil del local o vivienda en metros cuadrados.',
-  supplyVoltage: '230V para monofásica, 400V para trifásica.',
+  supplyVoltage: '230V monofásica, 400V trifásica. También 220V, 380V, 127V para instalaciones antiguas.',
   esquemaDistribucion: 'TT = Neutro a tierra (habitual en España), TN-S, TN-C, IT.',
   // CGP
   tipoCgp: 'CGP = Caja General de Protección (con esquema). BTV = Bases Tripolares Verticales (nº salidas).',
@@ -382,8 +388,62 @@ function SelectField({ label, field, value, onChange, options, placeholder, clas
   return (<div className={className ?? ''}><Label className="text-xs text-surface-700 mb-1 block">{label}{req && <span className="text-red-600 ml-0.5">*</span>}{locked && <Lock className="inline h-3 w-3 ml-1 text-surface-400" />}<HelpTip field={field} /></Label><select className={locked ? selectLockedCls : `${selectFieldCls} ${req && !value ? 'border-amber-300' : ''}`} value={value} onChange={(e) => !locked && onChange(field, e.target.value)} disabled={locked} title={locked ? 'Modificar en Cuadro eléctrico' : undefined}><option value="">{placeholder ?? 'Seleccionar...'}</option>{opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>);
 }
 
+function ComboboxField({ label, field, value, onChange, options, placeholder, className, rf }: { label: string; field: string; value: string; onChange: (f: string, v: string) => void; options: Array<{ value: string; label: string }>; placeholder?: string; className?: string; rf: string[]; }) {
+  const req = rf.includes(field);
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? '';
+
+  const filtered = useMemo(() => {
+    if (!search) return options;
+    const q = search.toLowerCase();
+    return options.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q));
+  }, [search, options]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className={className ?? ''} ref={wrapperRef}>
+      <Label className="text-xs text-surface-700 mb-1 block">{label}{req && <span className="text-red-600 ml-0.5">*</span>}<HelpTip field={field} /></Label>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          className={`${inputCls} ${req && !value ? 'border-amber-300' : ''}`}
+          value={open ? search : selectedLabel}
+          placeholder={placeholder ?? 'Buscar...'}
+          onChange={(e) => { setSearch(e.target.value); if (!open) setOpen(true); }}
+          onFocus={() => { setOpen(true); setSearch(''); }}
+          autoComplete="off"
+        />
+        {value && !open && (
+          <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 text-xs" onClick={() => { onChange(field, ''); setSearch(''); inputRef.current?.focus(); }}>✕</button>
+        )}
+        {open && (
+          <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md border border-surface-200 bg-white shadow-lg text-sm">
+            {filtered.length === 0 && <li className="px-3 py-2 text-surface-400">Sin resultados</li>}
+            {filtered.map((o) => (
+              <li key={o.value} className={`px-3 py-1.5 cursor-pointer hover:bg-blue-50 ${o.value === value ? 'bg-blue-100 font-medium' : ''}`} onMouseDown={(e) => { e.preventDefault(); onChange(field, o.value); setOpen(false); setSearch(''); }}>
+                {o.label}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DireccionFields({ prefix, data, onChange, rf }: { prefix: string; data: Record<string, string>; onChange: (f: string, v: string) => void; rf: string[]; }) {
-  return (<><div className="grid grid-cols-4 gap-3"><SelectField label="Tipo vía" field={`${prefix}TipoVia`} value={data[`${prefix}TipoVia`] ?? ''} onChange={onChange} options={TIPOS_VIA} className="col-span-1" rf={rf} /><TextField label="Nombre vía" field={`${prefix}NombreVia`} value={data[`${prefix}NombreVia`] ?? ''} onChange={onChange} className="col-span-2" rf={rf} /><TextField label="Nº" field={`${prefix}Numero`} value={data[`${prefix}Numero`] ?? ''} onChange={onChange} className="col-span-1" rf={rf} /></div><div className="grid grid-cols-4 gap-3"><TextField label="Bloque" field={`${prefix}Bloque`} value={data[`${prefix}Bloque`] ?? ''} onChange={onChange} rf={rf} /><TextField label="Escalera" field={`${prefix}Escalera`} value={data[`${prefix}Escalera`] ?? ''} onChange={onChange} rf={rf} /><TextField label="Piso" field={`${prefix}Piso`} value={data[`${prefix}Piso`] ?? ''} onChange={onChange} rf={rf} /><TextField label="Puerta" field={`${prefix}Puerta`} value={data[`${prefix}Puerta`] ?? ''} onChange={onChange} rf={rf} /></div><div className="grid grid-cols-3 gap-3"><TextField label="Localidad" field={`${prefix}Localidad`} value={data[`${prefix}Localidad`] ?? ''} onChange={onChange} rf={rf} /><TextField label="Provincia" field={`${prefix}Provincia`} value={data[`${prefix}Provincia`] ?? ''} onChange={onChange} rf={rf} /><TextField label="C.P." field={`${prefix}Cp`} value={data[`${prefix}Cp`] ?? ''} onChange={onChange} placeholder="28001" rf={rf} /></div></>);
+  return (<><div className="grid grid-cols-4 gap-3"><SelectField label="Tipo vía" field={`${prefix}TipoVia`} value={data[`${prefix}TipoVia`] ?? ''} onChange={onChange} options={TIPOS_VIA} className="col-span-1" rf={rf} /><TextField label="Nombre vía" field={`${prefix}NombreVia`} value={data[`${prefix}NombreVia`] ?? ''} onChange={onChange} className="col-span-2" rf={rf} /><TextField label="Nº" field={`${prefix}Numero`} value={data[`${prefix}Numero`] ?? ''} onChange={onChange} className="col-span-1" rf={rf} /></div><div className="grid grid-cols-4 gap-3"><TextField label="Bloque" field={`${prefix}Bloque`} value={data[`${prefix}Bloque`] ?? ''} onChange={onChange} rf={rf} /><TextField label="Escalera" field={`${prefix}Escalera`} value={data[`${prefix}Escalera`] ?? ''} onChange={onChange} rf={rf} /><TextField label="Piso" field={`${prefix}Piso`} value={data[`${prefix}Piso`] ?? ''} onChange={onChange} rf={rf} /><TextField label="Puerta" field={`${prefix}Puerta`} value={data[`${prefix}Puerta`] ?? ''} onChange={onChange} rf={rf} /></div><div className="grid grid-cols-3 gap-3"><ComboboxField label="Localidad" field={`${prefix}Localidad`} value={data[`${prefix}Localidad`] ?? ''} onChange={onChange} options={LOCALIDAD_OPTIONS} placeholder="Buscar localidad..." rf={rf} /><SelectField label="Provincia" field={`${prefix}Provincia`} value={data[`${prefix}Provincia`] ?? ''} onChange={onChange} options={PROVINCIA_OPTS} rf={rf} /><TextField label="C.P." field={`${prefix}Cp`} value={data[`${prefix}Cp`] ?? ''} onChange={onChange} placeholder="28001" rf={rf} /></div></>);
 }
 
 // ─── Componente principal ─────────────────────────────────────
@@ -430,13 +490,14 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       installerId: i.installerId??'',
       technicianId: i.technicianId??'',
       // Titular
+      holderDocType: i.holderDocType || 'NIF',
       titularNif: i.titularNif??'', titularNombre: i.titularNombre??i.titularName??'',
       titularApellido1: i.titularApellido1??'', titularApellido2: i.titularApellido2??'',
       titularTipoVia: i.titularTipoVia??'', titularNombreVia: i.titularNombreVia??'',
       titularNumero: i.titularNumero??'', titularBloque: i.titularBloque??'',
       titularEscalera: i.titularEscalera??'', titularPiso: i.titularPiso??'',
       titularPuerta: i.titularPuerta??'', titularLocalidad: i.titularLocalidad??'',
-      titularProvincia: i.titularProvincia??'', titularCp: i.titularCp??'',
+      titularProvincia: i.titularProvincia || PROVINCIA_DEFAULT, titularCp: i.titularCp??'',
       titularEmail: i.titularEmail??'', titularTelefono: i.titularTelefono??'', titularMovil: i.titularMovil??'',
       representanteNombre: i.representanteNombre??'', representanteNif: i.representanteNif??'',
       // Emplazamiento
@@ -444,7 +505,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       emplazNumero: i.emplazNumero??'', emplazBloque: i.emplazBloque??'',
       emplazEscalera: i.emplazEscalera??'', emplazPiso: i.emplazPiso??'',
       emplazPuerta: i.emplazPuerta??'', emplazLocalidad: i.emplazLocalidad??'',
-      emplazProvincia: i.emplazProvincia??'', emplazCp: i.emplazCp??'',
+      emplazProvincia: i.emplazProvincia || PROVINCIA_DEFAULT, emplazCp: i.emplazCp??'',
       superficieM2: i.superficieM2??'', cups: i.cups??'',
       contadorUbicacion: i.contadorUbicacion??'',
       // Datos técnicos
@@ -487,7 +548,7 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
       instaladorNif: i.instaladorNif??i.installerNif??'', instaladorCertNum: i.instaladorCertNum??'',
       empresaTipoVia: i.empresaTipoVia??'', empresaNombreVia: i.empresaNombreVia??'',
       empresaNumero: i.empresaNumero??'',
-      empresaLocalidad: i.empresaLocalidad??'', empresaProvincia: i.empresaProvincia??'',
+      empresaLocalidad: i.empresaLocalidad??'', empresaProvincia: i.empresaProvincia || PROVINCIA_DEFAULT,
       empresaCp: i.empresaCp??'', empresaTelefono: i.empresaTelefono??'',
       empresaMovil: i.empresaMovil??'', empresaEmail: i.empresaEmail??'',
       // Distribuidora
@@ -610,7 +671,22 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
   // Expose save method via ref
   const handleSaveRef = useRef(handleSave);
   handleSaveRef.current = handleSave;
-  useImperativeHandle(ref, () => ({ save: () => handleSaveRef.current() }), []);
+  useImperativeHandle(ref, () => ({
+    save: () => handleSaveRef.current(),
+    scrollToSection: (sectionNum: number) => {
+      // Open the section
+      setOpenSections(prev => ({ ...prev, [sectionNum]: true }));
+      // Scroll after render
+      setTimeout(() => {
+        const el = document.getElementById(`datos-section-${sectionNum}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          el.classList.add('ring-2', 'ring-amber-400', 'ring-offset-2');
+          setTimeout(() => el.classList.remove('ring-2', 'ring-amber-400', 'ring-offset-2'), 2000);
+        }
+      }, 100);
+    },
+  }), []);
 
   // Notify parent of state changes
   useEffect(() => {
@@ -806,10 +882,10 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
 
       {/* 2. TITULAR */}
       <Section title="Datos del Titular" num={2} {...secProps(2)}>
-        <div className="grid grid-cols-3 gap-3">
-          <TextField label="NIF / CIF" field="titularNif" value={data.titularNif??''} onChange={set} placeholder="12345678A" rf={rf} />
-          <TextField label="Nombre / Razón Social" field="titularNombre" value={data.titularNombre??''} onChange={set} rf={rf} />
-          <div />
+        <div className="grid grid-cols-4 gap-3">
+          <SelectField label="Tipo documento" field="holderDocType" value={data.holderDocType??'NIF'} onChange={set} options={DOCUMENTO_OPTS} rf={rf} />
+          <TextField label="Nº Documento" field="titularNif" value={data.titularNif??''} onChange={set} placeholder="12345678A" rf={rf} />
+          <TextField label="Nombre / Razón Social" field="titularNombre" value={data.titularNombre??''} onChange={set} rf={rf} className="col-span-2" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <TextField label="Primer apellido" field="titularApellido1" value={data.titularApellido1??''} onChange={set} rf={rf} />
@@ -842,9 +918,10 @@ export const DatosForm = forwardRef<DatosFormHandle, DatosFormProps>(function Da
 
       {/* 4. DATOS TÉCNICOS */}
       <Section title="Datos Técnicos" num={4} {...secProps(4)}>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           <SelectField label="Tipo instalación (cálculo)" field="supplyType" value={data.supplyType??''} onChange={set} options={SUPPLY_TYPES} rf={rf} locked={isLocked('supplyType')} />
-          <SelectField label="Tensión" field="supplyVoltage" value={data.supplyVoltage??'230'} onChange={set} options={[{value:'230',label:'230 V (Monofásica)'},{value:'400',label:'400 V (Trifásica)'}]} rf={rf} locked={isLocked('supplyVoltage')} />
+          <SelectField label="Tipo de suministro" field="_tipoSuministro" value={tipoSuministroFromVoltage(data.supplyVoltage)} onChange={(_f, v) => { set('supplyVoltage', v === 'Trifásico' ? '400' : '230'); }} options={SUMINISTRO_OPTS} rf={rf} locked={isLocked('supplyVoltage')} />
+          <SelectField label="Tensión" field="supplyVoltage" value={data.supplyVoltage??'230'} onChange={set} options={TENSION_OPTS} rf={rf} locked={isLocked('supplyVoltage')} />
           <SelectField label="Actuación" field="tipoActuacion" value={data.tipoActuacion??''} onChange={set} options={TIPOS_ACTUACION} rf={rf} />
         </div>
         <div className="grid grid-cols-3 gap-3">

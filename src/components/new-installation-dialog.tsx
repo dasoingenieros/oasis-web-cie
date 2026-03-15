@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { LocalidadCombobox } from '@/components/localidad-combobox';
 import {
   Dialog,
   DialogContent,
@@ -9,6 +10,7 @@ import {
 import { Loader2, FileText, BookOpen, PlusCircle, Maximize2, Pencil, X } from 'lucide-react';
 import type { CreateInstallationDto } from '@/lib/types';
 import { waitlistApi } from '@/lib/api-client';
+import { TIPO_VIA_OPTIONS } from '@/lib/portal-constants';
 import {
   INSTALLATION_TYPES,
   EXPEDIENTE_LABELS,
@@ -48,17 +50,8 @@ interface WizardState {
   modalidadAutoconsumo: string;
 }
 
-// Lista exacta del desplegable "Tipo_Via" en CERTIFICADO_BASICO.xls (hoja OPCIONES)
-const TIPOS_VIA_CIE = [
-  'ACCESO','ACUEDUCTO','AERODROMO','AEROPUERTO','ALAMEDA','ALMACEN','ALTO',
-  'APARTAMENTO','ARROYO','AUTOVIA','AVENIDA','BAJADA','BARRANCO','BARRIADA',
-  'BARRIO','BASILICA','BLOQUE','BULEVAR','CALLEJA','CALLEJON','CALLE','CAMINO',
-  'CAMPAMENTO','CANAL','CANTON','CAÑADA','CARRERA','CARRETERA','CARRIL','CERRO',
-  'COLONIA','COSTANILLA','CUESTA','DEHESA','FINCA','GLORIETA','GRAN VIA','PARAJE',
-  'PARCELA','PARQUE','PASADIZO','PASAJE','PASEO','PLAZA','PLAZUELA','POBLADO',
-  'POLIGONO','RINCON','RINCONADA','RONDA','ROTONDA','SECTOR','SENDA','TRASERA',
-  'TRAVESIA','URBANIZACION','VEREDA','VIA',
-];
+// Tipos de vía — lista oficial portal ASEICAM (sustituye la del Excel CIE)
+const TIPOS_VIA_CIE = TIPO_VIA_OPTIONS;
 
 const INITIAL_STATE: WizardState = {
   step: 1,
@@ -575,13 +568,13 @@ function Step4({
         <FormField label="Segundo apellido" value={state.titularApellido2} onChange={(v) => update({ titularApellido2: v })} placeholder="Apellido 2" />
       </div>
       <div className="grid grid-cols-4 gap-3">
-        <FormSelect label="Tipo de via" value={state.titularTipoVia} onChange={(v) => update({ titularTipoVia: v })} options={[{value:'',label:'Seleccionar'}, ...TIPOS_VIA_CIE.map(t => ({value:t,label:t}))]} />
+        <FormSelect label="Tipo de via" value={state.titularTipoVia} onChange={(v) => update({ titularTipoVia: v })} options={[{value:'',label:'Seleccionar'}, ...TIPOS_VIA_CIE.map(t => ({value:t.value,label:t.label}))]} />
         <FormField label="Nombre via *" value={state.titularNombreVia} onChange={(v) => update({ titularNombreVia: v })} placeholder="Ejemplo" />
         <FormField label="Numero" value={state.titularNumero} onChange={(v) => update({ titularNumero: v })} placeholder="1" />
         <FormField label="Codigo Postal" value={state.titularCp} onChange={(v) => update({ titularCp: v })} placeholder="28001" />
       </div>
       <div className="grid grid-cols-1 gap-3">
-        <FormField label="Municipio *" value={state.titularLocalidad} onChange={(v) => update({ titularLocalidad: v })} placeholder="Madrid" />
+        <div className="mb-3"><label className="block text-xs font-semibold text-slate-700 mb-1">Municipio *</label><LocalidadCombobox value={state.titularLocalidad} onChange={(v) => update({ titularLocalidad: v })} placeholder="Buscar municipio..." /></div>
       </div>
       <FormField label="Referencia" optional value={state.referencia} onChange={(v) => update({ referencia: v })} placeholder="Ej: EXP-2026-042, Reforma Piso 3B..." />
 
