@@ -196,6 +196,7 @@ export const panelNodesApi = {
   async move(installationId: string, nodeId: string, dto: { newParentId?: string | null; newPosition: number }): Promise<PanelNode> { const { data } = await api.patch<PanelNode>(`/installations/${installationId}/panel-nodes/${nodeId}/move`, dto); return data; },
   async delete(installationId: string, nodeId: string): Promise<void> { await api.delete(`/installations/${installationId}/panel-nodes/${nodeId}`); },
   async migrateV1(installationId: string): Promise<PanelNode[]> { const { data } = await api.post<PanelNode[]>(`/installations/${installationId}/panel-nodes/migrate-v1`); return data; },
+  async calculateTree(installationId: string): Promise<PanelNode[]> { const { data } = await api.post<PanelNode[]>(`/installations/${installationId}/panel-nodes/calculate`); return data; },
 };
 
 export const unifilarApi = {

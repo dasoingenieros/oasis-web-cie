@@ -31,6 +31,7 @@ export interface TreeNodeData {
   quantity: number | null;
   subcuadroName: string | null;
   contactorType: string | null;
+  calcResults: Record<string, unknown> | null;
   children: TreeNodeData[];
 }
 
@@ -83,6 +84,44 @@ function getDisplayName(node: TreeNodeData): string {
   if (node.name) return node.name;
   const config = NODE_TYPE_CONFIG[node.nodeType];
   return config.label;
+}
+
+function getCalcSummary(node: TreeNodeData): { text: string; ok: boolean } | null {
+  const cr = node.calcResults;
+  if (!cr) return null;
+
+  if (node.nodeType === 'CIRCUITO') {
+    const section = cr.sectionMm2 as number | undefined;
+    const iadm = cr.admissibleCurrentA as number | undefined;
+    const cdt = cr.voltageDropPct as number | undefined;
+    const cdtOk = cr.cdtCompliant as boolean | undefined;
+    const valid = cr.isCompliant as boolean | undefined;
+    if (section == null && iadm == null && cdt == null) return null;
+
+    const parts: string[] = [];
+    if (section != null) parts.push(`${section}mm²`);
+    if (iadm != null) parts.push(`Iadm=${iadm}A`);
+    if (cdt != null) parts.push(`CdT=${cdt.toFixed(1)}%`);
+    const ok = (valid ?? true) && (cdtOk ?? true);
+    return { text: parts.join(' '), ok };
+  }
+
+  if (node.nodeType === 'IGA') {
+    const di = cr.di as Record<string, unknown> | undefined;
+    const totalW = cr.totalInstalledW as number | undefined;
+    if (!di && totalW == null) return null;
+
+    const parts: string[] = [];
+    if (totalW != null) parts.push(`P=${totalW}W`);
+    if (di) {
+      const cdtPct = di.voltageDropPct as number | undefined;
+      if (cdtPct != null) parts.push(`CdT DI=${(cdtPct as number).toFixed(2)}%`);
+    }
+    const ok = di ? (di.cdtCompliant as boolean ?? true) : true;
+    return { text: parts.join(' '), ok };
+  }
+
+  return null;
 }
 
 interface TreeNodeProps {
@@ -145,6 +184,17 @@ export function TreeNode({ node, depth, onAdd, onDelete, onSelect, selectedNodeI
             {specs}
           </span>
         )}
+
+        {/* Calc results summary */}
+        {(() => {
+          const calc = getCalcSummary(node);
+          if (!calc) return null;
+          return (
+            <span className={`text-xs truncate ${calc.ok ? 'text-emerald-600' : 'text-amber-600'}`}>
+              {calc.ok ? '\u2713' : '\u26A0'} {calc.text}
+            </span>
+          );
+        })()}
 
         {/* Spacer */}
         <div className="flex-1" />

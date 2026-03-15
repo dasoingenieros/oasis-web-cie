@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Plus, AlertTriangle, Download, CheckCircle2 } from 'lucide-react';
+import { Loader2, Plus, AlertTriangle, Download, CheckCircle2, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { panelNodesApi } from '@/lib/api-client';
 import type { PanelNode, PanelNodeType, CreatePanelNodeDto } from '@/lib/types';
@@ -46,6 +46,7 @@ function buildTree(nodes: PanelNode[]): TreeNodeData[] {
       quantity: node.quantity,
       subcuadroName: node.subcuadroName,
       contactorType: node.contactorType,
+      calcResults: node.calcResults ?? null,
       children: [],
     });
   }
@@ -107,6 +108,8 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
 
   // Migration state
   const [migrating, setMigrating] = useState(false);
+  // Calculation state
+  const [calculating, setCalculating] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -124,6 +127,19 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
       alert('Error al importar desde Cuadro v1. Verifica que exista un cuadro eléctrico v1.');
     } finally {
       setMigrating(false);
+    }
+  };
+
+  const handleCalculate = async () => {
+    setCalculating(true);
+    try {
+      const result = await panelNodesApi.calculateTree(installationId);
+      setNodes(result);
+      showToast('Cálculo completado');
+    } catch {
+      alert('Error al calcular. Verifica que haya circuitos con datos completos.');
+    } finally {
+      setCalculating(false);
     }
   };
 
@@ -295,15 +311,30 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
                 <span className="text-xs text-surface-500">
                   {nodes.length} elemento{nodes.length !== 1 ? 's' : ''}
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddRoot}
-                  className="h-7 text-xs px-3 gap-1"
-                >
-                  <Plus className="h-3 w-3" />
-                  Añadir raíz
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleCalculate}
+                    disabled={calculating}
+                    className="h-7 text-xs px-3 gap-1"
+                  >
+                    {calculating ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Calculator className="h-3 w-3" />
+                    )}
+                    {calculating ? 'Calculando...' : 'Calcular'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddRoot}
+                    className="h-7 text-xs px-3 gap-1"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Añadir raíz
+                  </Button>
+                </div>
               </div>
               <PanelTree
                 nodes={treeNodes}
