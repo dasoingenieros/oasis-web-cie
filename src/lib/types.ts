@@ -531,6 +531,25 @@ export interface CreatePanelNodeDto {
   contactorType?: string;
 }
 
+// ─── Validación del cuadro ──────────────────────────────────
+export interface TreeValidationItem {
+  nodeId: string | null;
+  rule: string;
+  message: string;
+  severity: 'error' | 'warning' | 'info';
+}
+
+export interface TreeValidation {
+  errors: TreeValidationItem[];
+  warnings: TreeValidationItem[];
+  info: TreeValidationItem[];
+}
+
+export interface CalculateTreeResponse {
+  nodes: PanelNode[];
+  validation: TreeValidation;
+}
+
 // ─── Helpers de formato ──────────────────────────────────────
 
 export function formatPower(watts: number): string {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { NODE_TYPE_CONFIG } from './node-type-config';
+import { NODE_TYPE_CONFIG, NODE_ICON_MAP } from './node-type-config';
 import type { TreeNodeData } from './tree-node';
 
 interface MoveNodeDialogProps {
@@ -135,7 +135,7 @@ export function MoveNodeDialog({ open, node, allNodes, onConfirm, onClose }: Mov
                   : 'hover:bg-surface-50 border border-transparent'
               }`}
             >
-              <span>📍</span>
+              <MapPin className="h-4 w-4 text-surface-500" />
               <span className="font-medium">Raíz (primer nivel)</span>
             </button>
 
@@ -148,6 +148,7 @@ export function MoveNodeDialog({ open, node, allNodes, onConfirm, onClose }: Mov
               // Only allow selecting nodes that can have children
               const canBeParent = cfg.canHaveChildren && !isDisabled;
 
+              const IconComponent = NODE_ICON_MAP[cfg.icon];
               return (
                 <button
                   key={n.id}
@@ -164,7 +165,7 @@ export function MoveNodeDialog({ open, node, allNodes, onConfirm, onClose }: Mov
                   }`}
                   style={{ paddingLeft: `${depth * 20 + 12}px` }}
                 >
-                  <span>{cfg.icon}</span>
+                  {IconComponent && <IconComponent className="h-4 w-4 shrink-0" />}
                   <span className={isDisabled ? 'line-through' : ''}>
                     {n.name || cfg.label}
                   </span>

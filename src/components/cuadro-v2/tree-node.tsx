@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, Trash2, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Trash2, Loader2, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { NODE_TYPE_CONFIG } from './node-type-config';
-import type { PanelNodeType } from '@/lib/types';
+import { NODE_TYPE_CONFIG, NODE_ICON_MAP } from './node-type-config';
+import type { PanelNodeType, TreeValidationItem } from '@/lib/types';
 
 export interface TreeNodeData {
   id: string;
@@ -132,9 +132,10 @@ interface TreeNodeProps {
   onSelect?: (nodeId: string) => void;
   selectedNodeId?: string | null;
   deletingId: string | null;
+  nodeValidations?: Map<string, TreeValidationItem[]>;
 }
 
-export function TreeNode({ node, depth, onAdd, onDelete, onSelect, selectedNodeId, deletingId }: TreeNodeProps) {
+export function TreeNode({ node, depth, onAdd, onDelete, onSelect, selectedNodeId, deletingId, nodeValidations }: TreeNodeProps) {
   const [expanded, setExpanded] = useState(true);
   const config = NODE_TYPE_CONFIG[node.nodeType];
   const hasChildren = node.children.length > 0;
@@ -143,6 +144,12 @@ export function TreeNode({ node, depth, onAdd, onDelete, onSelect, selectedNodeI
   const displayName = getDisplayName(node);
   const isDeleting = deletingId === node.id;
   const isSelected = selectedNodeId === node.id;
+
+  // Validation indicator
+  const validations = nodeValidations?.get(node.id);
+  const hasError = validations?.some((v) => v.severity === 'error');
+  const hasWarning = validations?.some((v) => v.severity === 'warning');
+  const hasInfo = validations?.some((v) => v.severity === 'info');
 
   return (
     <div>
@@ -168,10 +175,15 @@ export function TreeNode({ node, depth, onAdd, onDelete, onSelect, selectedNodeI
         )}
 
         {/* Type badge */}
-        <span className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium shrink-0 ${config.color}`}>
-          <span>{config.icon}</span>
-          {config.shortLabel}
-        </span>
+        {(() => {
+          const IconComponent = NODE_ICON_MAP[config.icon];
+          return (
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border shrink-0 ${config.color}`}>
+              {IconComponent && <IconComponent className="h-3.5 w-3.5" />}
+              {config.shortLabel}
+            </span>
+          );
+        })()}
 
         {/* Name */}
         <span className="text-sm font-medium text-surface-800 truncate">
@@ -183,6 +195,17 @@ export function TreeNode({ node, depth, onAdd, onDelete, onSelect, selectedNodeI
           <span className="text-xs text-surface-400 truncate">
             {specs}
           </span>
+        )}
+
+        {/* Validation indicator */}
+        {hasError && (
+          <AlertCircle className="h-4 w-4 text-red-500 shrink-0" title={validations?.filter(v => v.severity === 'error').map(v => v.message).join('\n')} />
+        )}
+        {!hasError && hasWarning && (
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" title={validations?.filter(v => v.severity === 'warning').map(v => v.message).join('\n')} />
+        )}
+        {!hasError && !hasWarning && hasInfo && (
+          <Info className="h-4 w-4 text-blue-400 shrink-0" title={validations?.filter(v => v.severity === 'info').map(v => v.message).join('\n')} />
         )}
 
         {/* Calc results summary */}
@@ -240,6 +263,7 @@ export function TreeNode({ node, depth, onAdd, onDelete, onSelect, selectedNodeI
               onSelect={onSelect}
               selectedNodeId={selectedNodeId}
               deletingId={deletingId}
+              nodeValidations={nodeValidations}
             />
           ))}
         </div>

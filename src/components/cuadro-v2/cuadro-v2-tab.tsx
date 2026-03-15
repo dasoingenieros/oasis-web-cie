@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Plus, AlertTriangle, Download, CheckCircle2, Calculator } from 'lucide-react';
+import { Loader2, Plus, AlertTriangle, AlertCircle, Download, CheckCircle2, Calculator, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { panelNodesApi } from '@/lib/api-client';
-import type { PanelNode, PanelNodeType, CreatePanelNodeDto } from '@/lib/types';
+import type { PanelNode, PanelNodeType, CreatePanelNodeDto, TreeValidation, TreeValidationItem } from '@/lib/types';
 import { PanelTree } from './panel-tree';
 import { AddNodeDialog } from './add-node-dialog';
 import { NodeEditPanel } from './node-edit-panel';
@@ -108,8 +108,9 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
 
   // Migration state
   const [migrating, setMigrating] = useState(false);
-  // Calculation state
+  // Calculation & validation state
   const [calculating, setCalculating] = useState(false);
+  const [validation, setValidation] = useState<TreeValidation | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -134,7 +135,8 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
     setCalculating(true);
     try {
       const result = await panelNodesApi.calculateTree(installationId);
-      setNodes(result);
+      setNodes(result.nodes);
+      setValidation(result.validation);
       showToast('Cálculo completado');
     } catch {
       alert('Error al calcular. Verifica que haya circuitos con datos completos.');
@@ -172,6 +174,20 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
     () => (moveNodeId ? findNodeInTree(treeNodes, moveNodeId) : null),
     [treeNodes, moveNodeId],
   );
+
+  // Build per-node validation lookup
+  const nodeValidations = useMemo(() => {
+    if (!validation) return new Map<string, TreeValidationItem[]>();
+    const map = new Map<string, TreeValidationItem[]>();
+    const allItems = [...validation.errors, ...validation.warnings, ...validation.info];
+    for (const item of allItems) {
+      if (!item.nodeId) continue;
+      const existing = map.get(item.nodeId) || [];
+      existing.push(item);
+      map.set(item.nodeId, existing);
+    }
+    return map;
+  }, [validation]);
 
   // Root types already present (to prevent duplicate IGA)
   const existingRootTypes = nodes
@@ -273,7 +289,7 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
           /* Empty state */
           <div className="flex flex-col items-center justify-center py-16">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-100 mb-4">
-              <span className="text-2xl">⚡</span>
+              <Zap className="h-7 w-7 text-surface-400" />
             </div>
             <h3 className="text-sm font-semibold text-surface-700 mb-1">
               Cuadro eléctrico vacío
@@ -304,7 +320,24 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
           </div>
         ) : (
           /* Tree view + edit panel */
-          <div className="flex flex-col lg:flex-row">
+          <>
+            {/* Validation banner */}
+            {validation && (
+              <div className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b ${
+                validation.errors.length > 0
+                  ? 'bg-red-50 text-red-800 border-red-200'
+                  : validation.warnings.length > 0
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              }`}>
+                {validation.errors.length > 0
+                  ? <><AlertCircle className="h-4 w-4" />{`${validation.errors.length} error${validation.errors.length !== 1 ? 'es' : ''} que impide${validation.errors.length !== 1 ? 'n' : ''} el certificado`}</>
+                  : validation.warnings.length > 0
+                    ? <><AlertTriangle className="h-4 w-4" />{`${validation.warnings.length} advertencia${validation.warnings.length !== 1 ? 's' : ''}`}</>
+                    : <><CheckCircle2 className="h-4 w-4" />{'Cuadro válido'}</>}
+              </div>
+            )}
+            <div className="flex flex-col lg:flex-row">
             {/* Tree */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between border-b border-surface-100 px-4 py-2">
@@ -343,6 +376,7 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
                 onSelect={handleSelectNode}
                 selectedNodeId={selectedNodeId}
                 deletingId={deletingId}
+                nodeValidations={nodeValidations}
               />
             </div>
 
@@ -353,9 +387,11 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
                 onSave={handleSaveNode}
                 onMoveRequest={handleMoveRequest}
                 onClose={() => setSelectedNodeId(null)}
+                validations={selectedNodeId ? nodeValidations.get(selectedNodeId) || [] : []}
               />
             )}
           </div>
+          </>
         )}
       </div>
 

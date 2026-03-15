@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Save, ArrowUpDown, Loader2, CheckCircle2 } from 'lucide-react';
+import { X, Save, ArrowUpDown, Loader2, CheckCircle2, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,15 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { NODE_TYPE_CONFIG } from './node-type-config';
+import { NODE_TYPE_CONFIG, NODE_ICON_MAP } from './node-type-config';
 import type { TreeNodeData } from './tree-node';
-import type { PanelNodeType } from '@/lib/types';
+import type { PanelNodeType, TreeValidationItem } from '@/lib/types';
 
 interface NodeEditPanelProps {
   node: TreeNodeData;
   onSave: (nodeId: string, data: Record<string, unknown>) => Promise<void>;
   onMoveRequest: (nodeId: string) => void;
   onClose: () => void;
+  validations?: TreeValidationItem[];
 }
 
 const CALIBRE_OPTIONS = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160];
@@ -75,7 +76,7 @@ function phasesFromDisplay(display: string): number {
   return display === '1F' ? 1 : 3;
 }
 
-export function NodeEditPanel({ node, onSave, onMoveRequest, onClose }: NodeEditPanelProps) {
+export function NodeEditPanel({ node, onSave, onMoveRequest, onClose, validations }: NodeEditPanelProps) {
   const config = NODE_TYPE_CONFIG[node.nodeType];
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -304,10 +305,15 @@ export function NodeEditPanel({ node, onSave, onMoveRequest, onClose }: NodeEdit
     <div className="w-full lg:w-[380px] shrink-0 border-l border-surface-200 bg-white flex flex-col max-h-[calc(100vh-200px)]">
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-surface-100 px-4 py-3">
-        <span className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium shrink-0 ${config.color}`}>
-          <span>{config.icon}</span>
-          {config.shortLabel}
-        </span>
+        {(() => {
+          const IconComponent = NODE_ICON_MAP[config.icon];
+          return (
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border shrink-0 ${config.color}`}>
+              {IconComponent && <IconComponent className="h-3.5 w-3.5" />}
+              {config.shortLabel}
+            </span>
+          );
+        })()}
         <span className="text-sm font-medium text-surface-800 truncate flex-1">
           {node.name || config.label}
         </span>
@@ -338,6 +344,30 @@ export function NodeEditPanel({ node, onSave, onMoveRequest, onClose }: NodeEdit
         {node.nodeType === 'CIRCUITO' && renderCircuitFields()}
         {node.nodeType === 'CONTACTOR' && renderContactorFields()}
         {node.nodeType === 'SUBCUADRO' && renderSubcuadroFields()}
+
+        {/* Validations section */}
+        {validations && validations.length > 0 && (
+          <div className="space-y-2 border-t border-surface-200 pt-4">
+            <h4 className="text-xs font-semibold text-surface-600 uppercase tracking-wide">Validaciones</h4>
+            <div className="space-y-1.5">
+              {validations.map((v, i) => (
+                <div
+                  key={i}
+                  className={`flex items-start gap-1.5 text-xs px-2 py-1.5 rounded ${
+                    v.severity === 'error'
+                      ? 'bg-red-50 text-red-700'
+                      : v.severity === 'warning'
+                        ? 'bg-amber-50 text-amber-700'
+                        : 'bg-blue-50 text-blue-700'
+                  }`}
+                >
+                  {v.severity === 'error' ? <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" /> : v.severity === 'warning' ? <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" /> : <Info className="h-3.5 w-3.5 shrink-0 mt-px" />}
+                  {v.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer buttons */}

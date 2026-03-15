@@ -2,7 +2,7 @@
 
 import { TreeNode } from './tree-node';
 import type { TreeNodeData } from './tree-node';
-import type { PanelNodeType } from '@/lib/types';
+import type { PanelNodeType, TreeValidationItem } from '@/lib/types';
 
 interface PanelTreeProps {
   nodes: TreeNodeData[];
@@ -11,9 +11,10 @@ interface PanelTreeProps {
   onSelect?: (nodeId: string) => void;
   selectedNodeId?: string | null;
   deletingId: string | null;
+  nodeValidations?: Map<string, TreeValidationItem[]>;
 }
 
-export function PanelTree({ nodes, onAdd, onDelete, onSelect, selectedNodeId, deletingId }: PanelTreeProps) {
+export function PanelTree({ nodes, onAdd, onDelete, onSelect, selectedNodeId, deletingId, nodeValidations }: PanelTreeProps) {
   return (
     <div className="py-1">
       {nodes.map((node) => (
@@ -26,6 +27,7 @@ export function PanelTree({ nodes, onAdd, onDelete, onSelect, selectedNodeId, de
           onSelect={onSelect}
           selectedNodeId={selectedNodeId}
           deletingId={deletingId}
+          nodeValidations={nodeValidations}
         />
       ))}
     </div>

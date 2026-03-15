@@ -1,3 +1,14 @@
+import type { LucideIcon } from 'lucide-react';
+import {
+  Zap,
+  ShieldCheck,
+  ToggleRight,
+  GitBranch,
+  Cog,
+  Power,
+  LayoutGrid,
+  CircleDot,
+} from 'lucide-react';
 import type { PanelNodeType } from '@/lib/types';
 
 export interface NodeTypeConfig {
@@ -10,11 +21,23 @@ export interface NodeTypeConfig {
   fields: string[];
 }
 
+/** Map icon name string → Lucide component */
+export const NODE_ICON_MAP: Record<string, LucideIcon> = {
+  Zap,
+  ShieldCheck,
+  ToggleRight,
+  GitBranch,
+  Cog,
+  Power,
+  LayoutGrid,
+  CircleDot,
+};
+
 export const NODE_TYPE_CONFIG: Record<PanelNodeType, NodeTypeConfig> = {
   IGA: {
     label: 'Interruptor General Automático',
     shortLabel: 'IGA',
-    icon: '⚡',
+    icon: 'Zap',
     color: 'bg-red-100 text-red-800 border-red-300',
     canHaveChildren: true,
     allowedChildTypes: ['PROTECTOR_SOBRETENSIONES', 'AUTOMATICO', 'DIFERENCIAL', 'SUBCUADRO', 'CONTACTOR', 'CIRCUITO'],
@@ -23,7 +46,7 @@ export const NODE_TYPE_CONFIG: Record<PanelNodeType, NodeTypeConfig> = {
   PROTECTOR_SOBRETENSIONES: {
     label: 'Protector Sobretensiones',
     shortLabel: 'SPD',
-    icon: '🛡️',
+    icon: 'ShieldCheck',
     color: 'bg-purple-100 text-purple-800 border-purple-300',
     canHaveChildren: false,
     allowedChildTypes: [],
@@ -32,7 +55,7 @@ export const NODE_TYPE_CONFIG: Record<PanelNodeType, NodeTypeConfig> = {
   AUTOMATICO: {
     label: 'Magnetotérmico',
     shortLabel: 'MAG',
-    icon: '🔲',
+    icon: 'ToggleRight',
     color: 'bg-blue-100 text-blue-800 border-blue-300',
     canHaveChildren: true,
     allowedChildTypes: ['DIFERENCIAL', 'CIRCUITO', 'GUARDAMOTOR', 'CONTACTOR'],
@@ -41,7 +64,7 @@ export const NODE_TYPE_CONFIG: Record<PanelNodeType, NodeTypeConfig> = {
   DIFERENCIAL: {
     label: 'Interruptor Diferencial',
     shortLabel: 'DIF',
-    icon: '🔀',
+    icon: 'GitBranch',
     color: 'bg-amber-100 text-amber-800 border-amber-300',
     canHaveChildren: true,
     allowedChildTypes: ['AUTOMATICO', 'CIRCUITO', 'GUARDAMOTOR', 'CONTACTOR'],
@@ -50,7 +73,7 @@ export const NODE_TYPE_CONFIG: Record<PanelNodeType, NodeTypeConfig> = {
   GUARDAMOTOR: {
     label: 'Guardamotor',
     shortLabel: 'GM',
-    icon: '⚙️',
+    icon: 'Cog',
     color: 'bg-orange-100 text-orange-800 border-orange-300',
     canHaveChildren: true,
     allowedChildTypes: ['CIRCUITO'],
@@ -59,7 +82,7 @@ export const NODE_TYPE_CONFIG: Record<PanelNodeType, NodeTypeConfig> = {
   CONTACTOR: {
     label: 'Contactor',
     shortLabel: 'KM',
-    icon: '🔌',
+    icon: 'Power',
     color: 'bg-cyan-100 text-cyan-800 border-cyan-300',
     canHaveChildren: true,
     allowedChildTypes: ['CIRCUITO'],
@@ -68,7 +91,7 @@ export const NODE_TYPE_CONFIG: Record<PanelNodeType, NodeTypeConfig> = {
   SUBCUADRO: {
     label: 'Subcuadro',
     shortLabel: 'SC',
-    icon: '📦',
+    icon: 'LayoutGrid',
     color: 'bg-green-100 text-green-800 border-green-300',
     canHaveChildren: true,
     allowedChildTypes: ['IGA', 'PROTECTOR_SOBRETENSIONES', 'AUTOMATICO', 'DIFERENCIAL', 'SUBCUADRO', 'CONTACTOR', 'CIRCUITO'],
@@ -77,7 +100,7 @@ export const NODE_TYPE_CONFIG: Record<PanelNodeType, NodeTypeConfig> = {
   CIRCUITO: {
     label: 'Circuito',
     shortLabel: 'C',
-    icon: '💡',
+    icon: 'CircleDot',
     color: 'bg-gray-100 text-gray-800 border-gray-300',
     canHaveChildren: false,
     allowedChildTypes: [],

@@ -7,7 +7,7 @@ import type {
   Document, ElectricalPanel, SavePanelWithDifferentialsDto, UsageData,
   WaitlistDto, Installer, Technician, CreateInstallerDto, CreateTechnicianDto,
   TramitacionExpediente, TramitacionConfig, FeedbackReport, ReviewStatus,
-  PanelNode, CreatePanelNodeDto,
+  PanelNode, CreatePanelNodeDto, CalculateTreeResponse, TreeValidation,
 } from './types';
 
 let accessToken: string | null = null;
@@ -196,7 +196,8 @@ export const panelNodesApi = {
   async move(installationId: string, nodeId: string, dto: { newParentId?: string | null; newPosition: number }): Promise<PanelNode> { const { data } = await api.patch<PanelNode>(`/installations/${installationId}/panel-nodes/${nodeId}/move`, dto); return data; },
   async delete(installationId: string, nodeId: string): Promise<void> { await api.delete(`/installations/${installationId}/panel-nodes/${nodeId}`); },
   async migrateV1(installationId: string): Promise<PanelNode[]> { const { data } = await api.post<PanelNode[]>(`/installations/${installationId}/panel-nodes/migrate-v1`); return data; },
-  async calculateTree(installationId: string): Promise<PanelNode[]> { const { data } = await api.post<PanelNode[]>(`/installations/${installationId}/panel-nodes/calculate`); return data; },
+  async calculateTree(installationId: string): Promise<CalculateTreeResponse> { const { data } = await api.post<CalculateTreeResponse>(`/installations/${installationId}/panel-nodes/calculate`); return data; },
+  async validateTree(installationId: string): Promise<TreeValidation> { const { data } = await api.get<TreeValidation>(`/installations/${installationId}/panel-nodes/validate`); return data; },
 };
 
 export const unifilarApi = {

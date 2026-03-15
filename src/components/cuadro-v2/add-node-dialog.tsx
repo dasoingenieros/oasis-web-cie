@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { NODE_TYPE_CONFIG, ROOT_ALLOWED_TYPES } from './node-type-config';
+import { NODE_TYPE_CONFIG, NODE_ICON_MAP, ROOT_ALLOWED_TYPES } from './node-type-config';
 import type { PanelNodeType, CreatePanelNodeDto } from '@/lib/types';
 
 const CALIBRE_OPTIONS = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100];
@@ -153,6 +153,7 @@ export function AddNodeDialog({
             <div className="grid grid-cols-2 gap-2">
               {allowedTypes.map((type) => {
                 const cfg = NODE_TYPE_CONFIG[type];
+                const IconComponent = NODE_ICON_MAP[cfg.icon];
                 return (
                   <button
                     key={type}
@@ -163,8 +164,9 @@ export function AddNodeDialog({
                         : 'border-surface-200 hover:border-surface-300 hover:bg-surface-50'
                     }`}
                   >
-                    <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs font-medium ${cfg.color}`}>
-                      {cfg.icon} {cfg.shortLabel}
+                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-xs font-medium ${cfg.color}`}>
+                      {IconComponent && <IconComponent className="h-3.5 w-3.5" />}
+                      {cfg.shortLabel}
                     </span>
                     <span className="text-xs text-surface-600 truncate">{cfg.label}</span>
                   </button>
