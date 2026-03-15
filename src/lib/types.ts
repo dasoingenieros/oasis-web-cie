@@ -88,6 +88,7 @@ export interface Installation {
   longitudDi?: number | null;
   aislamientoDi?: string | null;
   tipoInstalacionDi?: string | null;
+  panelVersion?: string;
   status: InstallationStatus;
   templateUsed?: string | null;
   reviewNotes?: string | null;

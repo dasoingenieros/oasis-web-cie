@@ -9,6 +9,7 @@ import type { DatosFormHandle, DatosFormState } from '@/components/datos-form';
 import { CuadroForm } from '@/components/cuadro-form';
 import type { CuadroFormHandle } from '@/components/cuadro-form';
 import { CuadroV2Tab } from '@/components/cuadro-v2/cuadro-v2-tab';
+import { panelNodesApi } from '@/lib/api-client';
 import { DocumentosTab } from '@/components/documentos-tab';
 import type { DocumentosTabHandle } from '@/components/documentos-tab';
 import { Button } from '@/components/ui/button';
@@ -30,9 +31,11 @@ import {
   Plus,
   Trash2,
   Network,
+  ArrowUpCircle,
+  ArrowDownCircle,
 } from 'lucide-react';
 
-type Tab = 'datos' | 'cuadro' | 'cuadro_v2' | 'documentos';
+type Tab = 'datos' | 'cuadro' | 'documentos';
 
 function SupplyResultBanner({ result, panel }: { result: any; panel?: any }) {
   if (!result) return null;
@@ -109,6 +112,211 @@ function ProyectoProximamente() {
         La gestión de Proyectos Técnicos estará disponible en una próxima versión de OASIS.
         De momento puedes gestionar instalaciones con Memoria Técnica de Diseño (MTD).
       </p>
+    </div>
+  );
+}
+
+// ─── CuadroTabContent — renders v1 or v2 based on panelVersion ───
+
+function CuadroTabContent({
+  panelVersion,
+  installationId,
+  installation,
+  circuits,
+  supplyResult,
+  calculation,
+  isSaving,
+  isCalculating,
+  cuadroRef,
+  onSave,
+  onCalculate,
+  onRefetch,
+}: {
+  panelVersion: string;
+  installationId: string;
+  installation: any;
+  circuits: any[];
+  supplyResult: any;
+  calculation: any;
+  isSaving: boolean;
+  isCalculating: boolean;
+  cuadroRef: React.RefObject<CuadroFormHandle | null>;
+  onSave: (dtos: any[]) => Promise<any>;
+  onCalculate: () => Promise<boolean>;
+  onRefetch: () => Promise<void>;
+}) {
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [showDowngradeDialog, setShowDowngradeDialog] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [isDowngrading, setIsDowngrading] = useState(false);
+
+  const handleUpgrade = async () => {
+    setIsUpgrading(true);
+    try {
+      await panelNodesApi.upgradeToV2(installationId);
+      setShowUpgradeDialog(false);
+      await onRefetch();
+    } catch {
+      alert('Error al cambiar a Cuadro Avanzado.');
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
+  const handleDowngrade = async () => {
+    setIsDowngrading(true);
+    try {
+      await panelNodesApi.downgradeToV1(installationId);
+      setShowDowngradeDialog(false);
+      await onRefetch();
+    } catch {
+      alert('Error al volver a Cuadro Simple.');
+    } finally {
+      setIsDowngrading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Version switch button */}
+      {panelVersion === 'v1' ? (
+        <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-2">
+          <span className="text-xs text-blue-700">
+            <strong>Cuadro Simple</strong> — Formato tabla con circuitos y diferenciales
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowUpgradeDialog(true)}
+            className="h-7 text-xs px-3 gap-1 border-blue-300 text-blue-700 hover:bg-blue-100"
+          >
+            <ArrowUpCircle className="h-3.5 w-3.5" />
+            Cambiar a Cuadro Avanzado
+          </Button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between rounded-lg border border-purple-200 bg-purple-50 px-4 py-2">
+          <span className="text-xs text-purple-700">
+            <strong>Cuadro Avanzado</strong> — Árbol jerárquico con subcuadros y protecciones
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowDowngradeDialog(true)}
+            className="h-7 text-xs px-3 gap-1 border-purple-300 text-purple-700 hover:bg-purple-100"
+          >
+            <ArrowDownCircle className="h-3.5 w-3.5" />
+            Volver a Cuadro Simple
+          </Button>
+        </div>
+      )}
+
+      {/* Render v1 or v2 */}
+      {panelVersion === 'v1' ? (
+        <div className="rounded-lg border border-surface-200 bg-white p-6">
+          <CuadroForm
+            ref={cuadroRef}
+            circuits={circuits}
+            supplyType={installation.supplyType}
+            contractedPower={installation.contractedPower}
+            supplyResult={supplyResult}
+            installation={installation}
+            installationId={installationId}
+            calculation={calculation}
+            isSaving={isSaving}
+            isCalculating={isCalculating}
+            onSave={onSave}
+            onCalculate={onCalculate}
+          />
+        </div>
+      ) : (
+        <CuadroV2Tab installationId={installationId} />
+      )}
+
+      {/* Upgrade dialog */}
+      {showUpgradeDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                <Network className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-surface-900">Cambiar a Cuadro Avanzado</h3>
+              </div>
+            </div>
+            <p className="text-sm text-surface-700 mb-4">
+              El Cuadro Avanzado permite subcuadros, automáticos intermedios,
+              guardamotores y validaciones de protección.
+            </p>
+            <p className="text-sm text-surface-700 mb-4">
+              Se importarán los circuitos actuales al nuevo formato.
+              Podrás volver al modo simple en cualquier momento.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowUpgradeDialog(false)}
+                disabled={isUpgrading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleUpgrade}
+                disabled={isUpgrading}
+              >
+                {isUpgrading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ArrowUpCircle className="h-4 w-4 mr-1" />}
+                Cambiar a Avanzado
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Downgrade dialog */}
+      {showDowngradeDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-surface-900">Volver a Cuadro Simple</h3>
+              </div>
+            </div>
+            <p className="text-sm text-surface-700 mb-4">
+              Se eliminarán todos los datos del Cuadro Avanzado
+              (subcuadros, automáticos intermedios, etc.).
+            </p>
+            <p className="text-sm text-red-600 font-medium mb-4">
+              Los circuitos del Cuadro Simple no se modifican.
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDowngradeDialog(false)}
+                disabled={isDowngrading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleDowngrade}
+                disabled={isDowngrading}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {isDowngrading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ArrowDownCircle className="h-4 w-4 mr-1" />}
+                Volver a Simple
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -239,6 +447,8 @@ export default function InstallationDetailPage() {
     }
   };
 
+  const panelVersion = (installation as any).panelVersion ?? 'v1';
+
   const tabs: Array<{ id: Tab; label: string; icon: typeof FileText; badge?: string; disabled?: boolean }> = [
     { id: 'datos', label: 'Datos', icon: FileText },
     {
@@ -246,12 +456,6 @@ export default function InstallationDetailPage() {
       label: 'Cuadro eléctrico',
       icon: CircuitBoard,
       badge: circuits.length > 0 ? String(circuits.length) : undefined,
-      disabled: isProyecto,
-    },
-    {
-      id: 'cuadro_v2',
-      label: 'Cuadro v2',
-      icon: Network,
       disabled: isProyecto,
     },
     { id: 'documentos', label: 'Documentos', icon: FileDown, disabled: isProyecto },
@@ -381,7 +585,7 @@ export default function InstallationDetailPage() {
           </>
         )}
 
-        {activeTab === 'cuadro' && (
+        {activeTab === 'cuadro' && panelVersion === 'v1' && (
           <>
             <span className="text-xs text-surface-500">
               {circuits.length} circuito{circuits.length !== 1 ? 's' : ''} · {diffCount} dif.
@@ -402,8 +606,8 @@ export default function InstallationDetailPage() {
           </>
         )}
 
-        {activeTab === 'cuadro_v2' && (
-          <span className="text-xs text-surface-500">Cuadro eléctrico v2 — Vista de árbol</span>
+        {activeTab === 'cuadro' && panelVersion === 'v2' && (
+          <span className="text-xs text-surface-500">Cuadro eléctrico — Vista de árbol</span>
         )}
 
         {activeTab === 'documentos' && (
@@ -457,28 +661,20 @@ export default function InstallationDetailPage() {
         )}
 
         {activeTab === 'cuadro' && !isProyecto && (
-          <div className="space-y-4">
-            <div className="rounded-lg border border-surface-200 bg-white p-6">
-              <CuadroForm
-                ref={cuadroRef}
-                circuits={circuits}
-                supplyType={installation.supplyType}
-                contractedPower={installation.contractedPower}
-                supplyResult={supplyResult}
-                installation={installation}
-                installationId={id}
-                calculation={calculation}
-                isSaving={isSaving}
-                isCalculating={isCalculating}
-                onSave={handleSaveCircuits}
-                onCalculate={handleCalculate}
-              />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'cuadro_v2' && !isProyecto && (
-          <CuadroV2Tab installationId={id} />
+          <CuadroTabContent
+            panelVersion={panelVersion}
+            installationId={id}
+            installation={installation}
+            circuits={circuits}
+            supplyResult={supplyResult}
+            calculation={calculation}
+            isSaving={isSaving}
+            isCalculating={isCalculating}
+            cuadroRef={cuadroRef}
+            onSave={handleSaveCircuits}
+            onCalculate={handleCalculate}
+            onRefetch={refetch}
+          />
         )}
 
         {activeTab === 'documentos' && !isProyecto && (

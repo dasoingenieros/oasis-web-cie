@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Plus, AlertTriangle, AlertCircle, Download, CheckCircle2, Calculator, Zap } from 'lucide-react';
+import { Loader2, Plus, AlertTriangle, AlertCircle, CheckCircle2, Calculator, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { panelNodesApi } from '@/lib/api-client';
 import type { PanelNode, PanelNodeType, CreatePanelNodeDto, TreeValidation, TreeValidationItem } from '@/lib/types';
@@ -106,8 +106,6 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
   // Move dialog state
   const [moveNodeId, setMoveNodeId] = useState<string | null>(null);
 
-  // Migration state
-  const [migrating, setMigrating] = useState(false);
   // Calculation & validation state
   const [calculating, setCalculating] = useState(false);
   const [validation, setValidation] = useState<TreeValidation | null>(null);
@@ -116,19 +114,6 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
-  };
-
-  const handleMigrateV1 = async () => {
-    setMigrating(true);
-    try {
-      const result = await panelNodesApi.migrateV1(installationId);
-      await fetchNodes();
-      showToast(`Importados ${result.length} nodos desde Cuadro v1`);
-    } catch {
-      alert('Error al importar desde Cuadro v1. Verifica que exista un cuadro eléctrico v1.');
-    } finally {
-      setMigrating(false);
-    }
   };
 
   const handleCalculate = async () => {
@@ -301,20 +286,6 @@ export function CuadroV2Tab({ installationId }: CuadroV2TabProps) {
               <Button size="sm" onClick={handleAddRoot} className="gap-1.5">
                 <Plus className="h-3.5 w-3.5" />
                 Crear IGA
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleMigrateV1}
-                disabled={migrating}
-                className="gap-1.5"
-              >
-                {migrating ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Download className="h-3.5 w-3.5" />
-                )}
-                {migrating ? 'Importando...' : 'Importar desde Cuadro v1'}
               </Button>
             </div>
           </div>

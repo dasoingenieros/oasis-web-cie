@@ -198,6 +198,8 @@ export const panelNodesApi = {
   async migrateV1(installationId: string): Promise<PanelNode[]> { const { data } = await api.post<PanelNode[]>(`/installations/${installationId}/panel-nodes/migrate-v1`); return data; },
   async calculateTree(installationId: string): Promise<CalculateTreeResponse> { const { data } = await api.post<CalculateTreeResponse>(`/installations/${installationId}/panel-nodes/calculate`); return data; },
   async validateTree(installationId: string): Promise<TreeValidation> { const { data } = await api.get<TreeValidation>(`/installations/${installationId}/panel-nodes/validate`); return data; },
+  async upgradeToV2(installationId: string): Promise<{ nodes: PanelNode[]; panelVersion: string }> { const { data } = await api.post<{ nodes: PanelNode[]; panelVersion: string }>(`/installations/${installationId}/panel-nodes/upgrade-to-v2`); return data; },
+  async downgradeToV1(installationId: string): Promise<{ panelVersion: string }> { const { data } = await api.post<{ panelVersion: string }>(`/installations/${installationId}/panel-nodes/downgrade-to-v1`); return data; },
 };
 
 export const unifilarApi = {
