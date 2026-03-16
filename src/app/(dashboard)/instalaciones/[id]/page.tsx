@@ -6,6 +6,8 @@ import { useInstallation } from '@/hooks/use-installation';
 import { documentsApi, panelsApi } from '@/lib/api-client';
 import { DatosForm } from '@/components/datos-form';
 import type { DatosFormHandle, DatosFormState } from '@/components/datos-form';
+import { DatosGuiadosTab } from '@/components/datos-guiados/datos-guiados-tab';
+import type { DatosGuiadosHandle, DatosGuiadosState } from '@/components/datos-guiados/datos-guiados-tab';
 import { CuadroForm } from '@/components/cuadro-form';
 import type { CuadroFormHandle } from '@/components/cuadro-form';
 import { CuadroV2Tab } from '@/components/cuadro-v2/cuadro-v2-tab';
@@ -352,8 +354,12 @@ export default function InstallationDetailPage() {
 
   // ─── Refs for child imperative handles ───
   const datosRef = useRef<DatosFormHandle>(null);
+  const datosGuiadosRef = useRef<DatosGuiadosHandle>(null);
   const cuadroRef = useRef<CuadroFormHandle>(null);
   const docsRef = useRef<DocumentosTabHandle>(null);
+
+  // ─── Datos view mode: 'guiado' (new) vs 'completo' (legacy) ───
+  const [datosView, setDatosView] = useState<'guiado' | 'completo'>('guiado');
 
   // ─── Datos state from callback ───
   const [datosState, setDatosState] = useState<DatosFormState>({ percent: 0, filled: 0, total: 1, dirty: false });
@@ -575,7 +581,10 @@ export default function InstallationDetailPage() {
             <Button
               type="button"
               size="sm"
-              onClick={() => datosRef.current?.save()}
+              onClick={() => {
+                if (datosView === 'guiado') datosGuiadosRef.current?.save();
+                else datosRef.current?.save();
+              }}
               disabled={isSaving || !datosState.dirty}
               className="h-7 text-xs px-3 gap-1"
             >
@@ -645,19 +654,41 @@ export default function InstallationDetailPage() {
       {/* ═══ Tab Content ═══ */}
       <div className="mt-4 px-0">
         {activeTab === 'datos' && (
-          <div className="rounded-lg border border-surface-200 bg-white p-6">
+          <>
             {isProyecto ? (
-              <ProyectoProximamente />
-            ) : (
-              <DatosForm
-                ref={datosRef}
+              <div className="rounded-lg border border-surface-200 bg-white p-6">
+                <ProyectoProximamente />
+              </div>
+            ) : datosView === 'guiado' ? (
+              <DatosGuiadosTab
+                ref={datosGuiadosRef}
+                installationId={id}
                 installation={installation}
                 isSaving={isSaving}
                 onSave={handleSaveDatos}
                 onStateChange={setDatosState}
+                onShowAllFields={() => setDatosView('completo')}
               />
+            ) : (
+              <div className="space-y-3">
+                <button
+                  onClick={() => setDatosView('guiado')}
+                  className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                >
+                  &larr; Volver a vista guiada
+                </button>
+                <div className="rounded-lg border border-surface-200 bg-white p-6">
+                  <DatosForm
+                    ref={datosRef}
+                    installation={installation}
+                    isSaving={isSaving}
+                    onSave={handleSaveDatos}
+                    onStateChange={setDatosState}
+                  />
+                </div>
+              </div>
             )}
-          </div>
+          </>
         )}
 
         {activeTab === 'cuadro' && !isProyecto && (

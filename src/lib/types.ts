@@ -332,6 +332,56 @@ export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
   REPORTED: 'Error reportado',
 };
 
+// ─── Field Config / Field Status ─────────────────────────────
+
+export interface DocumentReadiness {
+  ready: boolean;
+  missingCount: number;
+  missingFields: string[];
+}
+
+export interface FieldStatusResponse {
+  profile: string;
+  totalFields: number;
+  completedFields: number;
+  completionPct: number;
+  missingSections: {
+    section: string;
+    label: string;
+    fields: { name: string; label: string; requiredForDocs?: string[] }[];
+  }[];
+  documentReadiness: {
+    MTD: DocumentReadiness;
+    CIE: DocumentReadiness;
+    SOLICITUD_BT: DocumentReadiness;
+  };
+}
+
+export interface FieldConfigField {
+  name: string;
+  label: string;
+  group: string;
+  inputType?: string;
+  options?: string[];
+  currentValue: any;
+  defaultValue?: any;
+  isComplete: boolean;
+  requiredForDocs?: string[];
+  calculatedBy?: string;
+  optional?: boolean;
+}
+
+export interface FieldConfigSection {
+  id: string;
+  label: string;
+  fields: FieldConfigField[];
+}
+
+export interface FieldConfigResponse {
+  profile: string;
+  sections: FieldConfigSection[];
+}
+
 // ─── API Response wrappers ───────────────────────────────────
 
 export interface ApiError {

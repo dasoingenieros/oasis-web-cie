@@ -8,6 +8,7 @@ import type {
   WaitlistDto, Installer, Technician, CreateInstallerDto, CreateTechnicianDto,
   TramitacionExpediente, TramitacionConfig, FeedbackReport, ReviewStatus,
   PanelNode, CreatePanelNodeDto, CalculateTreeResponse, TreeValidation,
+  FieldStatusResponse, FieldConfigResponse,
 } from './types';
 
 let accessToken: string | null = null;
@@ -110,6 +111,8 @@ export const installationsApi = {
   async create(dto: CreateInstallationDto): Promise<Installation> { const { data } = await api.post<Installation>('/installations', dto); return data; },
   async update(id: string, dto: UpdateInstallationDto): Promise<Installation> { const { data } = await api.put<Installation>(`/installations/${id}`, dto); return data; },
   async delete(id: string): Promise<void> { await api.delete(`/installations/${id}`); },
+  async getFieldStatus(id: string): Promise<FieldStatusResponse> { const { data } = await api.get<FieldStatusResponse>(`/installations/${id}/field-status`); return data; },
+  async getFieldConfig(id: string): Promise<FieldConfigResponse> { const { data } = await api.get<FieldConfigResponse>(`/installations/${id}/field-config`); return data; },
 };
 
 export const circuitsApi = {
