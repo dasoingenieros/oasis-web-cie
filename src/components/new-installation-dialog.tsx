@@ -10,14 +10,14 @@ import {
 import { Loader2, FileText, BookOpen, PlusCircle, Maximize2, Pencil, X } from 'lucide-react';
 import type { CreateInstallationDto } from '@/lib/types';
 import { waitlistApi } from '@/lib/api-client';
-import { TIPO_VIA_OPTIONS } from '@/lib/portal-constants';
+import { TIPO_VIA_OPTIONS, TIPO_DOCUMENTO_OPTIONS } from '@/lib/portal-constants';
 import {
   INSTALLATION_TYPES,
   EXPEDIENTE_LABELS,
   type InstallationType,
 } from '@/lib/installation-types';
 
-// ─── Props (unchanged interface) ───────────────────────────────────
+// ─── Props ──────────────────────────────────────────────────────
 
 interface NewInstallationDialogProps {
   open: boolean;
@@ -25,24 +25,64 @@ interface NewInstallationDialogProps {
   onSubmit: (data: CreateInstallationDto) => Promise<void>;
 }
 
-// ─── Wizard state ──────────────────────────────────────────────────
+// ─── Distribuidoras ─────────────────────────────────────────────
+
+const DISTRIBUIDORA_OPTIONS = [
+  { value: '0021 - I-DE Redes Eléctricas Inteligentes', label: '0021 - I-DE Redes Eléctricas Inteligentes' },
+  { value: '0022 - UFD Distribución Electricidad', label: '0022 - UFD Distribución Electricidad' },
+  { value: '0031 - E-Distribución Redes Digitales', label: '0031 - E-Distribución Redes Digitales' },
+  { value: '0026 - Hidrocantábrico Distribución Eléctrica', label: '0026 - Hidrocantábrico Distribución Eléctrica' },
+  { value: '0483 - Distribución Eléctrica del Tajuña', label: '0483 - Distribución Eléctrica del Tajuña' },
+  { value: '0494 - Distribución Eléctrica El Pozo del Tio Raimundo', label: '0494 - Distribución Eléctrica El Pozo del Tio Raimundo' },
+  { value: '0315 - Hidroeléctrica Vega', label: '0315 - Hidroeléctrica Vega' },
+  { value: '0148 - Distribución Eléctrica Las Mercedes', label: '0148 - Distribución Eléctrica Las Mercedes' },
+  { value: '0027 - Viesgo Distribución Eléctrica', label: '0027 - Viesgo Distribución Eléctrica' },
+];
+
+// ─── Wizard state ───────────────────────────────────────────────
 
 interface WizardState {
   step: number;
+  // Step 1 — Tipo instalación
   selectedType: string | null;
+  // Step 2 — Documentación (skipped when auto)
   docType: 'MTD' | 'PROYECTO' | null;
+  // Step 3 — Actuación
   expedienteType: string | null;
+  // Step 4 — Titular
+  holderDocType: string;
+  titularNif: string;
   titularNombre: string;
   titularApellido1: string;
   titularApellido2: string;
-  // Dirección del titular
+  titularEmail: string;
+  titularTelefono: string;
+  titularMovil: string;
+  // Step 5 — Dirección
   titularTipoVia: string;
   titularNombreVia: string;
   titularNumero: string;
-  titularCp: string;
+  titularBloque: string;
+  titularEscalera: string;
+  titularPiso: string;
+  titularPuerta: string;
   titularLocalidad: string;
+  titularCp: string;
+  mismaDir: boolean;
+  emplazTipoVia: string;
+  emplazNombreVia: string;
+  emplazNumero: string;
+  emplazBloque: string;
+  emplazEscalera: string;
+  emplazPiso: string;
+  emplazPuerta: string;
+  emplazLocalidad: string;
+  emplazCp: string;
+  cups: string;
+  // Step 6 — Técnicos
+  distribuidora: string;
+  supplyVoltage: string;
   referencia: string;
-  // Extra fields
   electrificacion: string;
   puntosRecarga: number;
   esquemaIve: string;
@@ -50,7 +90,6 @@ interface WizardState {
   modalidadAutoconsumo: string;
 }
 
-// Tipos de vía — lista oficial portal ASEICAM (sustituye la del Excel CIE)
 const TIPOS_VIA_CIE = TIPO_VIA_OPTIONS;
 
 const INITIAL_STATE: WizardState = {
@@ -58,14 +97,36 @@ const INITIAL_STATE: WizardState = {
   selectedType: null,
   docType: null,
   expedienteType: null,
+  holderDocType: 'NIF',
+  titularNif: '',
   titularNombre: '',
   titularApellido1: '',
   titularApellido2: '',
+  titularEmail: '',
+  titularTelefono: '',
+  titularMovil: '',
   titularTipoVia: '',
   titularNombreVia: '',
   titularNumero: '',
-  titularCp: '',
+  titularBloque: '',
+  titularEscalera: '',
+  titularPiso: '',
+  titularPuerta: '',
   titularLocalidad: '',
+  titularCp: '',
+  mismaDir: true,
+  emplazTipoVia: '',
+  emplazNombreVia: '',
+  emplazNumero: '',
+  emplazBloque: '',
+  emplazEscalera: '',
+  emplazPiso: '',
+  emplazPuerta: '',
+  emplazLocalidad: '',
+  emplazCp: '',
+  cups: '',
+  distribuidora: '0021 - I-DE Redes Eléctricas Inteligentes',
+  supplyVoltage: '230',
   referencia: '',
   electrificacion: 'BASICO',
   puntosRecarga: 1,
@@ -74,14 +135,18 @@ const INITIAL_STATE: WizardState = {
   modalidadAutoconsumo: 'sin_excedentes',
 };
 
-const STEP_SUBTITLES = [
-  '¿Que vas a instalar?',
-  'Tipo de documentacion',
-  'Tipo de expediente',
-  'Resumen y datos basicos',
-];
+const STEP_SUBTITLES: Record<number, string> = {
+  1: 'Tipo de instalacion',
+  2: 'Tipo de documentacion',
+  3: 'Tipo de actuacion',
+  4: 'Datos del titular',
+  5: 'Direccion',
+  6: 'Datos tecnicos',
+};
 
-// ─── Component ─────────────────────────────────────────────────────
+const TOTAL_STEPS = 6;
+
+// ─── Component ──────────────────────────────────────────────────
 
 export function NewInstallationDialog({ open, onOpenChange, onSubmit }: NewInstallationDialogProps) {
   const [state, setState] = useState<WizardState>(INITIAL_STATE);
@@ -96,6 +161,9 @@ export function NewInstallationDialog({ open, onOpenChange, onSubmit }: NewInsta
 
   const selectedTypeObj = INSTALLATION_TYPES.find((t) => t.key === state.selectedType);
 
+  // Skip step 2 for vivienda (auto MTD) and non-canMTD types (auto PROYECTO)
+  const skipStep2 = !!state.selectedType && (state.selectedType === 'vivienda' || !selectedTypeObj?.canMTD);
+
   const handleClose = () => {
     setState(INITIAL_STATE);
     setError(null);
@@ -108,7 +176,9 @@ export function NewInstallationDialog({ open, onOpenChange, onSubmit }: NewInsta
       case 1: return !!state.selectedType;
       case 2: return !!state.docType;
       case 3: return !!state.expedienteType;
-      case 4: return !!state.titularNombre.trim() && !!state.titularNombreVia.trim() && !!state.titularLocalidad.trim();
+      case 4: return !!state.titularNombre.trim() && !!state.titularApellido1.trim() && (!!state.titularTelefono.trim() || !!state.titularMovil.trim());
+      case 5: return !!state.titularNombreVia.trim() && !!state.titularLocalidad.trim();
+      case 6: return !!state.distribuidora;
       default: return false;
     }
   };
@@ -117,35 +187,28 @@ export function NewInstallationDialog({ open, onOpenChange, onSubmit }: NewInsta
     switch (state.step) {
       case 1: return state.selectedType ? 'Siguiente →' : 'Selecciona un tipo';
       case 2: return state.docType ? 'Siguiente →' : 'Elige documentacion';
-      case 3: return state.expedienteType ? 'Siguiente →' : 'Elige tipo de expediente';
-      case 4: return 'Crear instalacion →';
+      case 3: return state.expedienteType ? 'Siguiente →' : 'Elige tipo de actuacion';
+      case 4: return canNext() ? 'Siguiente →' : 'Completa los datos';
+      case 5: return canNext() ? 'Siguiente →' : 'Completa la direccion';
+      case 6: return 'Crear instalacion →';
       default: return 'Siguiente →';
     }
   };
 
   const goNext = () => {
-    if (state.step === 2 && !state.docType && selectedTypeObj && !selectedTypeObj.canMTD) {
-      // Auto-set forced proyecto
-      update({ docType: 'PROYECTO' });
-    }
-    if (state.step < 4) {
-      const nextStep = state.step + 1;
-      // On entering step 2, auto-set PROYECTO if forced
-      if (nextStep === 2 && selectedTypeObj && !selectedTypeObj.canMTD) {
-        update({ step: nextStep, docType: 'PROYECTO' });
-      } else if (nextStep === 2) {
-        update({ step: nextStep, docType: null });
-        setShowHelp(false);
-      } else {
-        update({ step: nextStep });
-      }
+    let next = state.step + 1;
+    if (next === 2 && skipStep2) next = 3;
+    if (next <= TOTAL_STEPS) {
+      update({ step: next });
     } else {
       handleCreate();
     }
   };
 
   const goBack = () => {
-    if (state.step > 1) update({ step: state.step - 1 });
+    let prev = state.step - 1;
+    if (prev === 2 && skipStep2) prev = 1;
+    if (prev >= 1) update({ step: prev });
   };
 
   const handleCreate = async () => {
@@ -153,25 +216,61 @@ export function NewInstallationDialog({ open, onOpenChange, onSubmit }: NewInsta
     setIsSubmitting(true);
     setError(null);
     try {
-      const fullName = [state.titularNombre, state.titularApellido1, state.titularApellido2].filter(Boolean).map(s => s.trim()).filter(Boolean).join(' ');
+      const up = (s: string) => s.trim().toUpperCase();
+      const fullName = [state.titularNombre, state.titularApellido1, state.titularApellido2].filter(Boolean).map(s => up(s)).filter(Boolean).join(' ');
+
+      const emplazTipoVia = state.mismaDir ? state.titularTipoVia : state.emplazTipoVia;
+      const emplazNombreVia = state.mismaDir ? state.titularNombreVia : state.emplazNombreVia;
+      const emplazNumero = state.mismaDir ? state.titularNumero : state.emplazNumero;
+      const emplazBloque = state.mismaDir ? state.titularBloque : state.emplazBloque;
+      const emplazEscalera = state.mismaDir ? state.titularEscalera : state.emplazEscalera;
+      const emplazPiso = state.mismaDir ? state.titularPiso : state.emplazPiso;
+      const emplazPuerta = state.mismaDir ? state.titularPuerta : state.emplazPuerta;
+      const emplazLocalidad = state.mismaDir ? state.titularLocalidad : state.emplazLocalidad;
+      const emplazCp = state.mismaDir ? state.titularCp : state.emplazCp;
+
+      const voltage = parseInt(state.supplyVoltage) || 230;
+
       const dto: CreateInstallationDto = {
         titularName: fullName,
-        titularNombre: state.titularNombre.trim() || undefined,
-        titularApellido1: state.titularApellido1.trim() || undefined,
-        titularApellido2: state.titularApellido2.trim() || undefined,
+        titularNombre: up(state.titularNombre) || undefined,
+        titularApellido1: up(state.titularApellido1) || undefined,
+        titularApellido2: up(state.titularApellido2) || undefined,
+        holderDocType: state.holderDocType || undefined,
+        titularNif: up(state.titularNif) || undefined,
+        titularEmail: state.titularEmail.trim().toLowerCase() || undefined,
+        titularTelefono: state.titularTelefono.trim() || undefined,
+        titularMovil: state.titularMovil.trim() || undefined,
         titularTipoVia: state.titularTipoVia || undefined,
-        titularNombreVia: state.titularNombreVia.trim() || undefined,
-        titularNumero: state.titularNumero.trim() || undefined,
+        titularNombreVia: up(state.titularNombreVia) || undefined,
+        titularNumero: up(state.titularNumero) || undefined,
+        titularBloque: up(state.titularBloque) || undefined,
+        titularEscalera: up(state.titularEscalera) || undefined,
+        titularPiso: up(state.titularPiso) || undefined,
+        titularPuerta: up(state.titularPuerta) || undefined,
         titularCp: state.titularCp.trim() || undefined,
         titularLocalidad: state.titularLocalidad.trim() || undefined,
+        titularProvincia: 'MADRID',
         address: [state.titularTipoVia, state.titularNombreVia, state.titularNumero].filter(Boolean).join(' ').trim() + (state.titularCp ? `, ${state.titularCp}` : '') + (state.titularLocalidad ? ` ${state.titularLocalidad}` : '') || undefined,
+        emplazTipoVia: emplazTipoVia || undefined,
+        emplazNombreVia: up(emplazNombreVia) || undefined,
+        emplazNumero: up(emplazNumero) || undefined,
+        emplazBloque: up(emplazBloque) || undefined,
+        emplazEscalera: up(emplazEscalera) || undefined,
+        emplazPiso: up(emplazPiso) || undefined,
+        emplazPuerta: up(emplazPuerta) || undefined,
+        emplazCp: emplazCp.trim() || undefined,
+        emplazLocalidad: emplazLocalidad.trim() || undefined,
+        emplazProvincia: 'MADRID',
+        cups: up(state.cups) || undefined,
         tipoDocumentacion: state.docType ?? undefined,
         installationType: state.selectedType ?? undefined,
         expedienteType: state.expedienteType ?? undefined,
+        distribuidora: state.distribuidora || undefined,
+        supplyVoltage: voltage,
         referencia: state.referencia.trim() || undefined,
       };
 
-      // Type-specific extra fields
       if (state.selectedType === 'vivienda') {
         dto.gradoElectrificacion = state.electrificacion;
       }
@@ -207,10 +306,12 @@ export function NewInstallationDialog({ open, onOpenChange, onSubmit }: NewInsta
         setWaitlistSent(false);
       }, 1500);
     } catch {
-      // silently ignore
       setWaitlistModal({ open: false, typeName: '', typeKey: '' });
     }
   };
+
+  // Stepper: hide step 2 bar when auto-resolved
+  const stepBars = skipStep2 ? [1, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6];
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
@@ -224,21 +325,37 @@ export function NewInstallationDialog({ open, onOpenChange, onSubmit }: NewInsta
             <X className="w-[18px] h-[18px]" />
           </button>
         </div>
-        <div className="px-7 pt-1 pb-5 text-[13px] text-slate-500">{STEP_SUBTITLES[state.step - 1]}</div>
+        <div className="px-7 pt-1 pb-5 text-[13px] text-slate-500">{STEP_SUBTITLES[state.step]}</div>
 
         {/* Stepper */}
         <div className="flex gap-1.5 px-7 pb-4">
-          {[1, 2, 3, 4].map((i) => (
+          {stepBars.map((i) => (
             <div key={i} className={`flex-1 h-[3px] rounded-sm transition-colors duration-300 ${i <= state.step ? 'bg-blue-500' : 'bg-slate-200'}`} />
           ))}
         </div>
 
         {/* Step content */}
         <div className="px-7 pb-7 max-h-[60vh] overflow-y-auto">
-          {state.step === 1 && <Step1 state={state} update={update} onComingSoon={(name, key) => setWaitlistModal({ open: true, typeName: name, typeKey: key })} />}
-          {state.step === 2 && <Step2 state={state} update={update} typeObj={selectedTypeObj!} showHelp={showHelp} setShowHelp={setShowHelp} />}
-          {state.step === 3 && <Step3 state={state} update={update} typeObj={selectedTypeObj!} />}
-          {state.step === 4 && <Step4 state={state} update={update} typeObj={selectedTypeObj!} error={error} />}
+          {state.step === 1 && (
+            <Step1TipoInstalacion
+              state={state}
+              update={update}
+              onComingSoon={(name, key) => setWaitlistModal({ open: true, typeName: name, typeKey: key })}
+            />
+          )}
+          {state.step === 2 && (
+            <Step2Documentacion
+              state={state}
+              update={update}
+              typeObj={selectedTypeObj!}
+              showHelp={showHelp}
+              setShowHelp={setShowHelp}
+            />
+          )}
+          {state.step === 3 && <Step3Actuacion state={state} update={update} />}
+          {state.step === 4 && <Step4Titular state={state} update={update} />}
+          {state.step === 5 && <Step5Direccion state={state} update={update} />}
+          {state.step === 6 && <Step6Tecnico state={state} update={update} typeObj={selectedTypeObj!} error={error} />}
         </div>
 
         {/* Footer */}
@@ -289,9 +406,9 @@ export function NewInstallationDialog({ open, onOpenChange, onSubmit }: NewInsta
   );
 }
 
-// ─── Step 1: ¿Que vas a instalar? ──────────────────────────────────
+// ─── Step 1: Tipo de instalación ────────────────────────────────
 
-function Step1({
+function Step1TipoInstalacion({
   state,
   update,
   onComingSoon,
@@ -312,7 +429,10 @@ function Step1({
             key={t.key}
             type={t}
             selected={state.selectedType === t.key}
-            onClick={() => update({ selectedType: t.key, docType: null, expedienteType: null })}
+            onClick={() => {
+              const autoDoc = t.key === 'vivienda' ? ('MTD' as const) : (t.canMTD ? null : ('PROYECTO' as const));
+              update({ selectedType: t.key, docType: autoDoc, expedienteType: null });
+            }}
           />
         ))}
       </div>
@@ -326,9 +446,9 @@ function Step1({
   );
 }
 
-// ─── Step 2: MTD o Proyecto ────────────────────────────────────────
+// ─── Step 2: Documentación (MTD / Proyecto) ─────────────────────
 
-function Step2({
+function Step2Documentacion({
   state,
   update,
   typeObj,
@@ -341,151 +461,79 @@ function Step2({
   showHelp: boolean;
   setShowHelp: (v: boolean) => void;
 }) {
-  const Icon = typeObj.icon;
-
   return (
     <div className="animate-in fade-in duration-250">
-      {/* Context bar */}
-      <div className="text-center p-4 bg-slate-50 rounded-xl mb-5">
-        <Icon className="w-6 h-6 mx-auto mb-1.5 text-slate-700" strokeWidth={1.2} />
-        <div className="text-base font-bold">{typeObj.name}</div>
-        <div className="text-xs text-slate-500">{typeObj.sub}</div>
+      <SectionLabel>Documentacion</SectionLabel>
+      <div className="grid grid-cols-2 gap-2.5">
+        <DocCard
+          icon={<FileText className="w-6 h-6" />}
+          title="Memoria Tecnica"
+          desc="La genera CIE Platform."
+          selected={state.docType === 'MTD'}
+          onClick={() => update({ docType: 'MTD' })}
+          compact
+        />
+        <DocCard
+          icon={<BookOpen className="w-6 h-6" />}
+          title="Proyecto Tecnico"
+          desc={`Lo sube el tecnico. >${typeObj.threshold ?? 100} kW.`}
+          selected={state.docType === 'PROYECTO'}
+          onClick={() => update({ docType: 'PROYECTO' })}
+          compact
+        />
       </div>
-
-      {typeObj.canMTD ? (
-        <>
-          <p className="text-center text-sm font-semibold mb-3">¿Que documentacion vas a presentar?</p>
-          <div className="grid grid-cols-2 gap-3 my-4">
-            <DocCard
-              icon={<FileText className="w-7 h-7" />}
-              title="Memoria Tecnica"
-              desc="La genera CIE Platform. Para la mayoria de instalaciones."
-              selected={state.docType === 'MTD'}
-              onClick={() => update({ docType: 'MTD' })}
-            />
-            <DocCard
-              icon={<BookOpen className="w-7 h-7" />}
-              title="Proyecto Tecnico"
-              desc={`Lo sube el tecnico. Obligatorio para >${typeObj.threshold ?? 100} kW o LPC.`}
-              selected={state.docType === 'PROYECTO'}
-              onClick={() => update({ docType: 'PROYECTO' })}
-            />
-          </div>
-          <button onClick={() => setShowHelp(!showHelp)} className="block mx-auto text-xs text-blue-500 hover:underline my-2">
-            🔍 No estoy seguro, ¿cual necesito?
-          </button>
-          {showHelp && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3.5 my-2.5 text-xs text-blue-800 leading-relaxed animate-in fade-in duration-200">
-              <strong>¿MTD o Proyecto?</strong><br /><br />
-              {typeObj.help}<br /><br />
-              <strong>Memoria Tecnica</strong> — La genera CIE Platform automaticamente.<br />
-              <strong>Proyecto Tecnico</strong> — Lo sube el tecnico competente.
-            </div>
-          )}
-        </>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 my-4">
-            <div className="border-2 border-dashed border-slate-200 rounded-xl p-5 text-center opacity-30 cursor-default">
-              <FileText className="w-7 h-7 mx-auto mb-2 text-slate-400" />
-              <div className="text-sm font-bold text-slate-400">Memoria Tecnica</div>
-              <div className="text-[11px] text-slate-500">No disponible para este tipo.</div>
-            </div>
-            <div className="border-2 border-blue-500 bg-blue-50 rounded-xl p-5 text-center">
-              <BookOpen className="w-7 h-7 mx-auto mb-2 text-blue-500" />
-              <div className="text-sm font-bold">Proyecto Tecnico</div>
-              <div className="text-[11px] text-slate-500">{typeObj.reason}</div>
-            </div>
-          </div>
-          <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-200 rounded-xl p-4 text-center my-3.5">
-            <div className="text-[13px] font-bold text-blue-700 mb-1">Sube tu Proyecto, nosotros generamos el resto</div>
-            <div className="text-[11px] text-blue-500 leading-relaxed">CIE, Solicitud BT y Esquema Unifilar automaticos a partir de tus datos.</div>
-            <div className="text-xs font-semibold text-blue-700 mt-1.5 italic">Proximamente: genera el Proyecto completo en minutos con CIE Platform</div>
-          </div>
-        </>
+      <button onClick={() => setShowHelp(!showHelp)} className="block mx-auto text-[10px] text-blue-500 hover:underline mt-1.5">
+        ¿MTD o Proyecto?
+      </button>
+      {showHelp && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2 text-xs text-blue-800 leading-relaxed animate-in fade-in duration-200">
+          <strong>¿MTD o Proyecto?</strong><br /><br />
+          {typeObj.help}<br /><br />
+          <strong>Memoria Tecnica</strong> — La genera CIE Platform automaticamente.<br />
+          <strong>Proyecto Tecnico</strong> — Lo sube el tecnico competente.
+        </div>
       )}
     </div>
   );
 }
 
-// ─── Step 3: Tipo de expediente ────────────────────────────────────
+// ─── Step 3: Tipo de actuación ──────────────────────────────────
 
-function Step3({
+function Step3Actuacion({
   state,
   update,
-  typeObj,
 }: {
   state: WizardState;
   update: (p: Partial<WizardState>) => void;
-  typeObj: InstallationType;
 }) {
-  const Icon = typeObj.icon;
   const mainExp = state.expedienteType?.startsWith('AMPLIACION') ? 'ampliacion'
     : state.expedienteType?.startsWith('MODIFICACION') ? 'modificacion'
     : state.expedienteType === 'NUEVA' ? 'nueva' : null;
 
   const selectMain = (type: 'nueva' | 'ampliacion' | 'modificacion') => {
-    if (type === 'nueva') {
-      update({ expedienteType: 'NUEVA' });
-    } else if (type === 'ampliacion') {
-      update({ expedienteType: 'AMPLIACION' });
-    } else {
-      update({ expedienteType: 'MODIFICACION' });
-    }
+    if (type === 'nueva') update({ expedienteType: 'NUEVA' });
+    else if (type === 'ampliacion') update({ expedienteType: 'AMPLIACION' });
+    else update({ expedienteType: 'MODIFICACION' });
   };
 
   return (
     <div className="animate-in fade-in duration-250">
-      {/* Context bar */}
-      <div className="text-center p-4 bg-slate-50 rounded-xl mb-5">
-        <Icon className="w-6 h-6 mx-auto mb-1.5 text-slate-700" strokeWidth={1.2} />
-        <div className="text-base font-bold">{typeObj.name}</div>
-        <div className="text-xs text-slate-500">{typeObj.sub}</div>
-        <div className="text-xs font-semibold text-blue-500 mt-1">
-          {state.docType === 'MTD' ? '📄 Memoria Tecnica' : '📋 Proyecto Tecnico'}
-        </div>
+      <SectionLabel>Tipo de expediente</SectionLabel>
+      <div className="grid grid-cols-3 max-sm:grid-cols-1 gap-2">
+        <ExpCard icon={<PlusCircle className="w-6 h-6" />} title="Nueva" desc="Instalacion nueva" selected={mainExp === 'nueva'} onClick={() => selectMain('nueva')} compact />
+        <ExpCard icon={<Maximize2 className="w-6 h-6" />} title="Ampliacion" desc="Ampliar existente" selected={mainExp === 'ampliacion'} onClick={() => selectMain('ampliacion')} compact />
+        <ExpCard icon={<Pencil className="w-6 h-6" />} title="Modificacion" desc="Modificar existente" selected={mainExp === 'modificacion'} onClick={() => selectMain('modificacion')} compact />
       </div>
 
-      <p className="text-center text-sm font-semibold mb-3.5">¿Que tipo de expediente?</p>
-
-      <div className="grid grid-cols-3 max-sm:grid-cols-1 gap-2.5 my-4">
-        <ExpCard
-          icon={<PlusCircle className="w-7 h-7" />}
-          title="Nueva"
-          desc="Instalacion completamente nueva"
-          selected={mainExp === 'nueva'}
-          onClick={() => selectMain('nueva')}
-        />
-        <ExpCard
-          icon={<Maximize2 className="w-7 h-7" />}
-          title="Ampliacion"
-          desc="Ampliar instalacion existente"
-          selected={mainExp === 'ampliacion'}
-          onClick={() => selectMain('ampliacion')}
-        />
-        <ExpCard
-          icon={<Pencil className="w-7 h-7" />}
-          title="Modificacion"
-          desc="Modificar instalacion existente"
-          selected={mainExp === 'modificacion'}
-          onClick={() => selectMain('modificacion')}
-        />
-      </div>
-
-      {/* Sub-options ampliacion */}
       {mainExp === 'ampliacion' && (
-        <div className="animate-in fade-in duration-200 my-3">
-          <div className="text-xs font-semibold text-slate-700 mb-2">Tipo de ampliacion:</div>
+        <div className="animate-in fade-in duration-200 mt-2">
           <SubOption label="Ampliacion" selected={state.expedienteType === 'AMPLIACION'} onClick={() => update({ expedienteType: 'AMPLIACION' })} />
           <SubOption label="Ampliacion con Cambio de Titular" selected={state.expedienteType === 'AMPLIACION_CAMBIO_TITULAR'} onClick={() => update({ expedienteType: 'AMPLIACION_CAMBIO_TITULAR' })} />
           <SubOption label="Ampliacion sin Instalacion" selected={state.expedienteType === 'AMPLIACION_SIN_INSTALACION'} onClick={() => update({ expedienteType: 'AMPLIACION_SIN_INSTALACION' })} />
         </div>
       )}
-
-      {/* Sub-options modificacion */}
       {mainExp === 'modificacion' && (
-        <div className="animate-in fade-in duration-200 my-3">
-          <div className="text-xs font-semibold text-slate-700 mb-2">Tipo de modificacion:</div>
+        <div className="animate-in fade-in duration-200 mt-2">
           <SubOption label="Modificacion Instalacion" selected={state.expedienteType === 'MODIFICACION'} onClick={() => update({ expedienteType: 'MODIFICACION' })} />
           <SubOption label="Modificacion con Cambio de Titular" selected={state.expedienteType === 'MODIFICACION_CAMBIO_TITULAR'} onClick={() => update({ expedienteType: 'MODIFICACION_CAMBIO_TITULAR' })} />
           <SubOption label="Modificacion sin Instalacion" selected={state.expedienteType === 'MODIFICACION_SIN_INSTALACION'} onClick={() => update({ expedienteType: 'MODIFICACION_SIN_INSTALACION' })} />
@@ -495,9 +543,117 @@ function Step3({
   );
 }
 
-// ─── Step 4: Resumen + datos ───────────────────────────────────────
+// ─── Step 4: Datos del titular ──────────────────────────────────
 
-function Step4({
+function Step4Titular({
+  state,
+  update,
+}: {
+  state: WizardState;
+  update: (p: Partial<WizardState>) => void;
+}) {
+  const docTypeOptions = [
+    ...TIPO_DOCUMENTO_OPTIONS.map(o => ({ value: o.value, label: o.label })),
+    { value: 'CIF', label: 'CIF' },
+  ];
+
+  return (
+    <div className="animate-in fade-in duration-250">
+      <FormSelect
+        label="Tipo de documento"
+        value={state.holderDocType}
+        onChange={(v) => update({ holderDocType: v })}
+        options={docTypeOptions}
+      />
+      <FormFieldUpper label="NIF / NIE / CIF" value={state.titularNif} onChange={(v) => update({ titularNif: v })} placeholder="12345678A" />
+      <FormFieldUpper label="Nombre / Razon Social *" value={state.titularNombre} onChange={(v) => update({ titularNombre: v })} placeholder="Nombre" />
+      <div className="grid grid-cols-2 gap-3">
+        <FormFieldUpper label="Primer apellido *" value={state.titularApellido1} onChange={(v) => update({ titularApellido1: v })} placeholder="Apellido 1" />
+        <FormFieldUpper label="Segundo apellido" value={state.titularApellido2} onChange={(v) => update({ titularApellido2: v })} placeholder="Apellido 2" />
+      </div>
+      <FormField label="Email" value={state.titularEmail} onChange={(v) => update({ titularEmail: v })} placeholder="titular@email.com" type="email" />
+      <div className="grid grid-cols-2 gap-3">
+        <FormField label="Telefono" value={state.titularTelefono} onChange={(v) => update({ titularTelefono: v })} placeholder="912345678" />
+        <FormField label="Movil" value={state.titularMovil} onChange={(v) => update({ titularMovil: v })} placeholder="612345678" />
+      </div>
+      <p className="text-[11px] text-slate-400 -mt-1">* Al menos uno de telefono o movil es obligatorio</p>
+    </div>
+  );
+}
+
+// ─── Step 5: Dirección ──────────────────────────────────────────
+
+function Step5Direccion({
+  state,
+  update,
+}: {
+  state: WizardState;
+  update: (p: Partial<WizardState>) => void;
+}) {
+  return (
+    <div className="animate-in fade-in duration-250">
+      <div className="text-xs font-semibold text-slate-500 mb-2">Direccion del titular</div>
+      <div className="grid grid-cols-3 gap-3">
+        <FormSelect label="Tipo de via" value={state.titularTipoVia} onChange={(v) => update({ titularTipoVia: v })} options={[{value:'',label:'Seleccionar'}, ...TIPOS_VIA_CIE.map(t => ({value:t.value,label:t.label}))]} />
+        <FormFieldUpper label="Nombre via *" value={state.titularNombreVia} onChange={(v) => update({ titularNombreVia: v })} placeholder="Ejemplo" />
+        <FormFieldUpper label="Numero" value={state.titularNumero} onChange={(v) => update({ titularNumero: v })} placeholder="1" />
+      </div>
+      <div className="grid grid-cols-4 gap-3">
+        <FormFieldUpper label="Bloque" value={state.titularBloque} onChange={(v) => update({ titularBloque: v })} placeholder="" />
+        <FormFieldUpper label="Escalera" value={state.titularEscalera} onChange={(v) => update({ titularEscalera: v })} placeholder="" />
+        <FormFieldUpper label="Piso" value={state.titularPiso} onChange={(v) => update({ titularPiso: v })} placeholder="" />
+        <FormFieldUpper label="Puerta" value={state.titularPuerta} onChange={(v) => update({ titularPuerta: v })} placeholder="" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="mb-3">
+          <label className="block text-xs font-semibold text-slate-700 mb-1">Municipio *</label>
+          <LocalidadCombobox value={state.titularLocalidad} onChange={(v) => update({ titularLocalidad: v })} placeholder="Buscar municipio..." />
+        </div>
+        <FormField label="Codigo postal" value={state.titularCp} onChange={(v) => update({ titularCp: v })} placeholder="28001" />
+      </div>
+
+      <label className="flex items-center gap-2 my-3 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={state.mismaDir}
+          onChange={(e) => update({ mismaDir: e.target.checked })}
+          className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20"
+        />
+        <span className="text-[13px] font-medium text-slate-700">El emplazamiento es la misma direccion que el titular</span>
+      </label>
+
+      {!state.mismaDir && (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="text-xs font-semibold text-slate-500 mb-2 mt-1">Direccion del emplazamiento</div>
+          <div className="grid grid-cols-3 gap-3">
+            <FormSelect label="Tipo de via" value={state.emplazTipoVia} onChange={(v) => update({ emplazTipoVia: v })} options={[{value:'',label:'Seleccionar'}, ...TIPOS_VIA_CIE.map(t => ({value:t.value,label:t.label}))]} />
+            <FormFieldUpper label="Nombre via *" value={state.emplazNombreVia} onChange={(v) => update({ emplazNombreVia: v })} placeholder="Ejemplo" />
+            <FormFieldUpper label="Numero" value={state.emplazNumero} onChange={(v) => update({ emplazNumero: v })} placeholder="1" />
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            <FormFieldUpper label="Bloque" value={state.emplazBloque} onChange={(v) => update({ emplazBloque: v })} placeholder="" />
+            <FormFieldUpper label="Escalera" value={state.emplazEscalera} onChange={(v) => update({ emplazEscalera: v })} placeholder="" />
+            <FormFieldUpper label="Piso" value={state.emplazPiso} onChange={(v) => update({ emplazPiso: v })} placeholder="" />
+            <FormFieldUpper label="Puerta" value={state.emplazPuerta} onChange={(v) => update({ emplazPuerta: v })} placeholder="" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="mb-3">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Municipio</label>
+              <LocalidadCombobox value={state.emplazLocalidad} onChange={(v) => update({ emplazLocalidad: v })} placeholder="Buscar municipio..." />
+            </div>
+            <FormField label="Codigo postal" value={state.emplazCp} onChange={(v) => update({ emplazCp: v })} placeholder="28001" />
+          </div>
+        </div>
+      )}
+
+      <FormFieldUpper label="CUPS" value={state.cups} onChange={(v) => update({ cups: v })} placeholder="ES0021..." optional />
+    </div>
+  );
+}
+
+// ─── Step 6: Datos técnicos ─────────────────────────────────────
+
+function Step6Tecnico({
   state,
   update,
   typeObj,
@@ -509,84 +665,51 @@ function Step4({
   error: string | null;
 }) {
   const Icon = typeObj.icon;
-  const extraDocs = typeObj.extraDocs ?? [];
 
   return (
     <div className="animate-in fade-in duration-250">
-      {/* Type summary header */}
-      <div className="flex items-center gap-3 p-3.5 bg-slate-50 rounded-xl mb-3.5">
-        <Icon className="w-7 h-7 flex-shrink-0 text-slate-700" strokeWidth={1.2} />
-        <div>
-          <div className="text-[15px] font-semibold">{typeObj.name}</div>
-          <div className="text-xs text-slate-500">{typeObj.sub}</div>
+      {/* Summary header */}
+      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl mb-4">
+        <Icon className="w-6 h-6 flex-shrink-0 text-slate-700" strokeWidth={1.2} />
+        <div className="flex-1 min-w-0">
+          <div className="text-[14px] font-semibold">{typeObj.name}</div>
+          <div className="text-[11px] text-slate-500">{typeObj.sub}</div>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-blue-50 text-blue-500 border border-blue-200">
+            {state.docType === 'MTD' ? 'MTD' : 'Proyecto'}
+          </span>
+          <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-500 border border-emerald-200">
+            {EXPEDIENTE_LABELS[state.expedienteType ?? ''] ?? state.expedienteType}
+          </span>
         </div>
       </div>
 
-      {/* Chips */}
-      <div className="flex flex-wrap gap-1.5 my-2.5">
-        <span className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-blue-50 text-blue-500 border border-blue-200">
-          {state.docType === 'MTD' ? '📄 Memoria Tecnica' : '📋 Proyecto Tecnico'}
-        </span>
-        <span className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-500 border border-emerald-200">
-          {EXPEDIENTE_LABELS[state.expedienteType ?? ''] ?? state.expedienteType}
-        </span>
-        {extraDocs.map((d) => (
-          <span key={d} className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-amber-50 text-amber-600 border border-amber-200">{d}</span>
-        ))}
-      </div>
+      <FormSelect
+        label="Distribuidora"
+        value={state.distribuidora}
+        onChange={(v) => update({ distribuidora: v })}
+        options={DISTRIBUIDORA_OPTIONS}
+      />
+      <FormSelect
+        label="Tension de suministro"
+        value={state.supplyVoltage}
+        onChange={(v) => update({ supplyVoltage: v })}
+        options={[
+          { value: '230', label: '230V monofasico' },
+          { value: '400', label: '400V trifasico' },
+        ]}
+      />
 
-      {/* Doc list */}
-      <div className="my-3.5 space-y-1">
-        {state.docType === 'MTD' ? (
-          <DocItem icon="check" color="green" text="Memoria Tecnica de Diseno (MTD) — generada automaticamente" />
-        ) : (
-          <DocItem icon="upload" color="amber" text="Proyecto Tecnico — lo subes tu" />
-        )}
-        <DocItem icon="check" color="green" text="Certificado de Instalacion Electrica (CIE)" />
-        <DocItem icon="check" color="green" text="Solicitud de Suministro BT" />
-        <DocItem icon="check" color="green" text="Esquema Unifilar" />
-        {extraDocs.map((d) => (
-          <DocItem key={d} icon="check" color="blue" text={d} />
-        ))}
-      </div>
-
-      {/* Proyecto banner */}
-      {state.docType === 'PROYECTO' && (
-        <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-200 rounded-xl p-4 text-center my-3.5">
-          <div className="text-[13px] font-bold text-blue-700 mb-1">Proximamente: genera tu Proyecto con CIE Platform</div>
-          <div className="text-[11px] text-blue-500 leading-relaxed">Estamos trabajando para que puedas generar el Proyecto Tecnico automaticamente.</div>
-        </div>
-      )}
-
-      <div className="h-px bg-slate-200 my-3.5" />
-
-      {/* Form fields — Datos del titular */}
-      <div className="text-xs font-semibold text-slate-500 mb-1">Datos del titular</div>
-      <div className="grid grid-cols-3 gap-3">
-        <FormField label="Nombre / Razon Social *" value={state.titularNombre} onChange={(v) => update({ titularNombre: v })} placeholder="Nombre" />
-        <FormField label="Primer apellido" value={state.titularApellido1} onChange={(v) => update({ titularApellido1: v })} placeholder="Apellido 1" />
-        <FormField label="Segundo apellido" value={state.titularApellido2} onChange={(v) => update({ titularApellido2: v })} placeholder="Apellido 2" />
-      </div>
-      <div className="grid grid-cols-4 gap-3">
-        <FormSelect label="Tipo de via" value={state.titularTipoVia} onChange={(v) => update({ titularTipoVia: v })} options={[{value:'',label:'Seleccionar'}, ...TIPOS_VIA_CIE.map(t => ({value:t.value,label:t.label}))]} />
-        <FormField label="Nombre via *" value={state.titularNombreVia} onChange={(v) => update({ titularNombreVia: v })} placeholder="Ejemplo" />
-        <FormField label="Numero" value={state.titularNumero} onChange={(v) => update({ titularNumero: v })} placeholder="1" />
-        <FormField label="Codigo Postal" value={state.titularCp} onChange={(v) => update({ titularCp: v })} placeholder="28001" />
-      </div>
-      <div className="grid grid-cols-1 gap-3">
-        <div className="mb-3"><label className="block text-xs font-semibold text-slate-700 mb-1">Municipio *</label><LocalidadCombobox value={state.titularLocalidad} onChange={(v) => update({ titularLocalidad: v })} placeholder="Buscar municipio..." /></div>
-      </div>
-      <FormField label="Referencia" optional value={state.referencia} onChange={(v) => update({ referencia: v })} placeholder="Ej: EXP-2026-042, Reforma Piso 3B..." />
-
-      {/* Extra fields per type */}
+      {/* Type-specific technical fields */}
       {state.selectedType === 'vivienda' && (
         <FormSelect
-          label="Electrificacion"
+          label="Grado de electrificacion"
           value={state.electrificacion}
           onChange={(v) => update({ electrificacion: v })}
           options={[
-            { value: 'BASICO', label: 'Basica (C1-C5)' },
-            { value: 'ELEVADO', label: 'Elevada (C1-C12)' },
+            { value: 'BASICO', label: 'Basica — 5.750 W' },
+            { value: 'ELEVADO', label: 'Elevada — 9.200 W' },
           ]}
         />
       )}
@@ -629,12 +752,14 @@ function Step4({
         </>
       )}
 
+      <FormField label="Referencia" optional value={state.referencia} onChange={(v) => update({ referencia: v })} placeholder="Ej: EXP-2026-042, Reforma Piso 3B..." />
+
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
     </div>
   );
 }
 
-// ─── Shared sub-components ─────────────────────────────────────────
+// ─── Shared sub-components ──────────────────────────────────────
 
 function SectionLabel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
@@ -694,26 +819,28 @@ function DocCard({
   desc,
   selected,
   onClick,
+  compact,
 }: {
   icon: React.ReactNode;
   title: string;
   desc: string;
   selected: boolean;
   onClick: () => void;
+  compact?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`border-2 rounded-xl p-5 text-center transition-all cursor-pointer
+      className={`border-2 rounded-xl ${compact ? 'p-3.5' : 'p-5'} text-center transition-all cursor-pointer
         ${selected
           ? 'border-blue-500 bg-blue-50'
           : 'border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 hover:-translate-y-px'}
       `}
     >
-      <div className={`mx-auto mb-2 ${selected ? 'text-blue-500' : 'text-slate-700'}`}>{icon}</div>
-      <div className="text-sm font-bold mb-1">{title}</div>
-      <div className="text-[11px] text-slate-500 leading-snug">{desc}</div>
+      <div className={`mx-auto ${compact ? 'mb-1' : 'mb-2'} ${selected ? 'text-blue-500' : 'text-slate-700'}`}>{icon}</div>
+      <div className={`${compact ? 'text-[12px]' : 'text-sm'} font-bold mb-0.5`}>{title}</div>
+      <div className={`${compact ? 'text-[10px]' : 'text-[11px]'} text-slate-500 leading-snug`}>{desc}</div>
     </button>
   );
 }
@@ -724,26 +851,28 @@ function ExpCard({
   desc,
   selected,
   onClick,
+  compact,
 }: {
   icon: React.ReactNode;
   title: string;
   desc: string;
   selected: boolean;
   onClick: () => void;
+  compact?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`border-2 rounded-xl p-5 text-center transition-all cursor-pointer
+      className={`border-2 rounded-xl ${compact ? 'p-3' : 'p-5'} text-center transition-all cursor-pointer
         ${selected
           ? 'border-blue-500 bg-blue-50'
           : 'border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 hover:-translate-y-px'}
       `}
     >
-      <div className={`mx-auto mb-2 transition-colors ${selected ? 'text-blue-500' : 'text-slate-500'}`}>{icon}</div>
-      <div className="text-sm font-bold mb-1">{title}</div>
-      <div className="text-[11px] text-slate-500 leading-snug">{desc}</div>
+      <div className={`mx-auto ${compact ? 'mb-1' : 'mb-2'} transition-colors ${selected ? 'text-blue-500' : 'text-slate-500'}`}>{icon}</div>
+      <div className={`${compact ? 'text-[12px]' : 'text-sm'} font-bold mb-0.5`}>{title}</div>
+      <div className={`${compact ? 'text-[10px]' : 'text-[11px]'} text-slate-500 leading-snug`}>{desc}</div>
     </button>
   );
 }
@@ -762,16 +891,6 @@ function SubOption({ label, selected, onClick }: { label: string; selected: bool
       </div>
       {label}
     </button>
-  );
-}
-
-function DocItem({ icon, color, text }: { icon: 'check' | 'upload'; color: 'green' | 'amber' | 'blue'; text: string }) {
-  const colorMap = { green: 'text-emerald-500', amber: 'text-amber-500', blue: 'text-blue-500' };
-  return (
-    <div className="flex items-center gap-2 py-1 text-[13px]">
-      <span className={`font-bold ${colorMap[color]}`}>{icon === 'check' ? '✓' : '↑'}</span>
-      <span>{text}</span>
-    </div>
   );
 }
 
@@ -801,6 +920,35 @@ function FormField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-[13px] focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+      />
+    </div>
+  );
+}
+
+function FormFieldUpper({
+  label,
+  value,
+  onChange,
+  placeholder,
+  optional,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  optional?: boolean;
+}) {
+  return (
+    <div className="mb-3">
+      <label className="block text-xs font-semibold text-slate-700 mb-1">
+        {label} {optional && <span className="font-normal text-slate-400">(opcional)</span>}
+      </label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value.toUpperCase())}
+        placeholder={placeholder}
+        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-[13px] uppercase focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
       />
     </div>
   );

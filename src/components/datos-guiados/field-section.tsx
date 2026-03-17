@@ -12,6 +12,7 @@ interface FieldSectionProps {
   fields: FieldConfigField[];
   defaultExpanded?: boolean;
   disabledFields?: Set<string>;
+  uppercaseFields?: Set<string>;
   onChange: (name: string, value: any) => void;
   /** Extra content rendered before the fields (e.g. "misma dirección" checkbox) */
   headerExtra?: React.ReactNode;
@@ -24,7 +25,6 @@ const SECTION_ICONS: Record<string, string> = {
   acometida: '\u{1F50C}',
   cgp: '\u{1F4E6}',
   lga: '\u{1F4CF}',
-  di: '\u{1F50C}',
   modulo_medida: '\u{1F4D0}',
   protecciones: '\u{1F6E1}',
   tierra: '\u{26CF}',
@@ -40,12 +40,23 @@ export function FieldSection({
   fields,
   defaultExpanded,
   disabledFields,
+  uppercaseFields,
   onChange,
   headerExtra,
 }: FieldSectionProps) {
   // Count required (non-optional) fields that are missing
   const requiredFields = fields.filter((f) => f.group === 'A' || f.group === 'B');
-  const missingRequired = requiredFields.filter((f) => !f.isComplete && !f.optional);
+  // Pre-compute atLeastOneOf groups
+  const groupSatisfied = new Map<string, boolean>();
+  for (const f of requiredFields) {
+    if (!f.atLeastOneOf) continue;
+    if (!groupSatisfied.has(f.atLeastOneOf)) groupSatisfied.set(f.atLeastOneOf, false);
+    if (f.isComplete) groupSatisfied.set(f.atLeastOneOf, true);
+  }
+  const missingRequired = requiredFields.filter((f) => {
+    if (f.atLeastOneOf) return !(groupSatisfied.get(f.atLeastOneOf) ?? false);
+    return !f.isComplete && !f.optional;
+  });
   const allOptional = requiredFields.length === 0 || requiredFields.every((f) => f.optional);
 
   const [expanded, setExpanded] = useState(
@@ -115,8 +126,13 @@ export function FieldSection({
                 group={field.group}
                 onChange={onChange}
                 disabled={disabledFields?.has(field.name)}
+                uppercase={uppercaseFields?.has(field.name)}
                 missing={
-                  !field.isComplete && !field.optional && (field.group === 'A' || field.group === 'B')
+                  (field.group === 'A' || field.group === 'B') && (
+                    field.atLeastOneOf
+                      ? !(groupSatisfied.get(field.atLeastOneOf) ?? false)
+                      : !field.isComplete && !field.optional
+                  )
                 }
               />
             ))}

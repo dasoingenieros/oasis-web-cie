@@ -8,7 +8,8 @@ export type SymbolType =
   | 'busbar'
   | 'punto_luz' | 'toma_corriente' | 'alumbrado_emergencia' | 'resistivo' | 'irve' | 'domotica'
   | 'tierra' | 'texto' | 'info_block'
-  | 'contactor' | 'guardamotor' | 'reloj_horario' | 'motor' | 'seccionador' | 'magneto_diferencial';
+  | 'contactor' | 'guardamotor' | 'reloj_horario' | 'motor' | 'seccionador' | 'magneto_diferencial'
+  | 'subcuadro' | 'protector_sobretensiones';
 
 export type SymbolCategory = 'supply' | 'protection' | 'distribution' | 'receptor' | 'maniobra' | 'other';
 
@@ -39,6 +40,8 @@ export const SYMBOL_TYPES: Record<SymbolType, SymbolDef> = {
   contactor:            { label: 'Contactor',            w: 24,  h: 48,  category: 'maniobra' },
   guardamotor:          { label: 'Guardamotor',          w: 26,  h: 56,  category: 'maniobra' },
   reloj_horario:        { label: 'Reloj horario',        w: 30,  h: 40,  category: 'maniobra' },
+  subcuadro:            { label: 'Subcuadro',             w: 60,  h: 40,  category: 'distribution' },
+  protector_sobretensiones: { label: 'Prot. sobretensiones', w: 24, h: 44, category: 'protection' },
   tierra:               { label: 'Toma de tierra',       w: 22,  h: 22,  category: 'other' },
   texto:                { label: 'Texto libre',          w: 80,  h: 20,  category: 'other' },
   info_block:           { label: 'Info circuito',        w: 80,  h: 60,  category: 'other' },

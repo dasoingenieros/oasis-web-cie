@@ -14,8 +14,8 @@ import { FieldSection } from './field-section';
 import { Loader2, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-// ─── Sections hidden from guided view (auto-filled from tenant) ───
-const HIDDEN_SECTIONS = new Set(['empresa', 'instalador', 'distribuidora']);
+// ─── Sections hidden from guided view (auto-filled from tenant or shown in cuadro tab) ───
+const HIDDEN_SECTIONS = new Set(['empresa', 'instalador', 'cgp', 'modulo_medida']);
 
 // ─── Section display order ───
 const SECTION_ORDER = [
@@ -25,7 +25,6 @@ const SECTION_ORDER = [
   'acometida',
   'cgp',
   'lga',
-  'di',
   'modulo_medida',
   'protecciones',
   'tierra',
@@ -34,6 +33,13 @@ const SECTION_ORDER = [
   'firma',
   'info',
 ];
+
+// ─── Text fields that must be stored/displayed in UPPERCASE ───
+const UPPERCASE_FIELDS = new Set([
+  'titularNombre', 'titularApellido1', 'titularApellido2',
+  'titularNombreVia', 'titularLocalidad', 'titularProvincia',
+  'emplazNombreVia', 'emplazLocalidad', 'emplazProvincia',
+]);
 
 // ─── Address fields copied from titular → emplazamiento ───
 const ADDRESS_FIELD_MAP: Record<string, string> = {
@@ -78,32 +84,40 @@ export const DatosGuiadosTab = forwardRef<DatosGuiadosHandle, Props>(function Da
   const [loading, setLoading] = useState(true);
   const [sameAddress, setSameAddress] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({});
-  const [dirty, setDirty] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRef = useRef<Record<string, any>>({});
+  pendingRef.current = pendingChanges;
+  // dirty is derived — true whenever there are unsaved changes
+  const dirty = Object.keys(pendingChanges).length > 0;
+  const fieldConfigFetched = useRef(false);
 
-  // ─── Fetch field config + status ───
-  const fetchFieldData = useCallback(async () => {
-    try {
-      const [config, status] = await Promise.all([
-        installationsApi.getFieldConfig(installationId),
-        installationsApi.getFieldStatus(installationId),
-      ]);
-      setFieldConfig(config);
-      setFieldStatus(status);
-    } catch (err) {
-      console.error('Error fetching field data:', err);
-    } finally {
-      setLoading(false);
-    }
+  // ─── Fetch field config (ONCE) + status ───
+  useEffect(() => {
+    if (fieldConfigFetched.current) return;
+    fieldConfigFetched.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [config, status] = await Promise.all([
+          installationsApi.getFieldConfig(installationId),
+          installationsApi.getFieldStatus(installationId),
+        ]);
+        if (cancelled) return;
+        setFieldConfig(config);
+        setFieldStatus(status);
+      } catch (err) {
+        console.error('Error fetching field data:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [installationId]);
 
+  // ─── Detect "same address" on initial load only ───
+  const sameAddrDetected = useRef(false);
   useEffect(() => {
-    fetchFieldData();
-  }, [fetchFieldData]);
-
-  // ─── Detect "same address" on load ───
-  useEffect(() => {
-    if (!fieldConfig) return;
+    if (!fieldConfig || sameAddrDetected.current) return;
+    sameAddrDetected.current = true;
     const sections = fieldConfig.sections;
     const titularSection = sections.find((s) => s.id === 'titular');
     const emplazSection = sections.find((s) => s.id === 'emplazamiento');
@@ -166,58 +180,68 @@ export const DatosGuiadosTab = forwardRef<DatosGuiadosHandle, Props>(function Da
       }));
   }, [fieldConfig, pendingChanges]);
 
-  // ─── Save handler ───
+  // ─── Save handler (reads latest pendingChanges via ref to avoid stale closures) ───
   const save = useCallback(async () => {
-    if (Object.keys(pendingChanges).length === 0) return;
+    const current = pendingRef.current;
+    if (Object.keys(current).length === 0) return;
+    const changesToSave = { ...current };
     try {
-      await onSave(pendingChanges);
-      setPendingChanges({});
-      setDirty(false);
-      // Refresh field status after save
+      await onSave(changesToSave);
+
+      // Merge saved values into fieldConfig locally (no refetch — local state is source of truth)
+      setFieldConfig((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          sections: prev.sections.map((section) => ({
+            ...section,
+            fields: section.fields.map((f) => {
+              if (f.name in changesToSave) {
+                const v = changesToSave[f.name];
+                return { ...f, currentValue: v, isComplete: v != null && String(v).trim() !== '' };
+              }
+              return f;
+            }),
+          })),
+        };
+      });
+
+      // Remove only the saved keys from pending (preserve any edits made during save)
+      setPendingChanges((prev) => {
+        const next: Record<string, any> = {};
+        for (const [k, v] of Object.entries(prev)) {
+          if (k in changesToSave && v === changesToSave[k]) continue;
+          next[k] = v;
+        }
+        return next;
+      });
+
+      // Refresh field-status only (progress/readiness, NOT field values)
       const status = await installationsApi.getFieldStatus(installationId);
       setFieldStatus(status);
-      // Also refresh config to get updated values
-      const config = await installationsApi.getFieldConfig(installationId);
-      setFieldConfig(config);
     } catch (err) {
       console.error('Error saving:', err);
     }
-  }, [pendingChanges, onSave, installationId]);
+  }, [onSave, installationId]);
 
   useImperativeHandle(ref, () => ({ save }), [save]);
 
-  // ─── Auto-save with debounce ───
-  const scheduleSave = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      // Trigger save via ref
-      save();
-    }, 1500);
-  }, [save]);
-
-  // Cleanup debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-
-  // ─── Field change handler ───
+  // ─── Field change handler (no auto-save — only explicit Guardar button) ───
   const handleFieldChange = useCallback(
     (name: string, value: any) => {
-      const newChanges = { ...pendingChanges, [name]: value };
+      // Uppercase for titular/emplazamiento text fields
+      const v = UPPERCASE_FIELDS.has(name) && typeof value === 'string' ? value.toUpperCase() : value;
+      const newChanges = { ...pendingChanges, [name]: v };
 
       // If sameAddress is active and this is a titular address field, copy to emplaz
       if (sameAddress && name in ADDRESS_FIELD_MAP) {
         const emplazField = ADDRESS_FIELD_MAP[name];
-        newChanges[emplazField] = value;
+        newChanges[emplazField] = UPPERCASE_FIELDS.has(emplazField) && typeof v === 'string' ? v.toUpperCase() : v;
       }
 
       setPendingChanges(newChanges);
-      setDirty(true);
-      scheduleSave();
     },
-    [pendingChanges, sameAddress, scheduleSave],
+    [pendingChanges, sameAddress],
   );
 
   // ─── "Same address" toggle ───
@@ -240,11 +264,9 @@ export const DatosGuiadosTab = forwardRef<DatosGuiadosHandle, Props>(function Da
         });
 
         setPendingChanges(newChanges);
-        setDirty(true);
-        scheduleSave();
       }
     },
-    [fieldConfig, pendingChanges, scheduleSave],
+    [fieldConfig, pendingChanges],
   );
 
   // ─── Disabled fields (emplaz address when sameAddress active) ───
@@ -303,6 +325,7 @@ export const DatosGuiadosTab = forwardRef<DatosGuiadosHandle, Props>(function Da
             label={section.label}
             fields={section.fields}
             disabledFields={disabledFields}
+            uppercaseFields={UPPERCASE_FIELDS}
             onChange={handleFieldChange}
             headerExtra={
               section.id === 'emplazamiento' ? (

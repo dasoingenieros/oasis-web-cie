@@ -83,7 +83,15 @@ export interface Installation {
   installerName?: string | null;
   installerNif?: string | null;
   installerRegNum?: string | null;
+  tipoCgp?: string | null;
+  esquemaCgp?: string | null;
+  inBaseCgp?: number | null;
+  inCartuchoCgp?: number | null;
+  tipoModuloMedida?: string | null;
+  situacionModulo?: string | null;
+  contadorUbicacion?: string | null;
   seccionDi?: number | null;
+  cdtDi?: number | null;
   materialDi?: string | null;
   longitudDi?: number | null;
   aislamientoDi?: string | null;
@@ -105,17 +113,28 @@ export interface CreateInstallationDto {
   titularApellido1?: string;
   titularApellido2?: string;
   titularNif?: string;
+  holderDocType?: string;
   titularTipoVia?: string;
   titularNombreVia?: string;
   titularNumero?: string;
+  titularBloque?: string;
+  titularEscalera?: string;
+  titularPiso?: string;
+  titularPuerta?: string;
   titularCp?: string;
   titularLocalidad?: string;
+  titularProvincia?: string;
+  titularEmail?: string;
+  titularTelefono?: string;
+  titularMovil?: string;
   titularAddress?: string;
   address?: string;
   // Emplazamiento (dirección separada)
   emplazTipoVia?: string;
   emplazNombreVia?: string;
   emplazNumero?: string;
+  emplazBloque?: string;
+  emplazEscalera?: string;
   emplazPiso?: string;
   emplazPuerta?: string;
   emplazCp?: string;
@@ -125,6 +144,9 @@ export interface CreateInstallationDto {
   supplyType?: SupplyType;
   contractedPower?: number;
   supplyVoltage?: number;
+  distribuidora?: string;
+  igaNominal?: number;
+  potMaxAdmisible?: number;
   installerName?: string;
   installerNif?: string;
   installerRegNum?: string;
@@ -369,6 +391,7 @@ export interface FieldConfigField {
   requiredForDocs?: string[];
   calculatedBy?: string;
   optional?: boolean;
+  atLeastOneOf?: string;
 }
 
 export interface FieldConfigSection {
@@ -395,6 +418,20 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   limit: number;
+}
+
+// ─── Installation Document (adjuntos) ────────────────────────
+
+export interface InstallationDocument {
+  id: string;
+  tenantId: string;
+  installationId: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number;
+  mimeType: string;
+  description?: string | null;
+  uploadedAt: string;
 }
 
 // ─── Usage / Plan ───────────────────────────────────────────

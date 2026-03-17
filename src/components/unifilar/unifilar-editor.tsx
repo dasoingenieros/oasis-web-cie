@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect, useReducer, useMemo } from 'react';
-import { installationsApi, panelsApi, circuitsApi, calculationsApi, unifilarApi } from '@/lib/api-client';
-import { generateFromAPI } from './layout-engine';
+import { installationsApi, panelsApi, circuitsApi, calculationsApi, unifilarApi, panelNodesApi } from '@/lib/api-client';
+import { generateFromAPI, generateFromPanelNodes } from './layout-engine';
 import {
   UnifilarNode, UnifilarWire, UnifilarTemplate, UnifilarState, UnifilarAction,
   SYMBOL_TYPES, CATEGORIES, SymbolType,
@@ -293,6 +293,29 @@ function RenderSymbol({ node, isSelected }: { node: UnifilarNode; isSelected: bo
         {p.label && <text x={-16} y={16} fill={muted} fontSize={7} fontFamily={FN} textAnchor="end">{p.label}</text>}
         {p.calibre && <text x={16} y={16} fill={color} fontSize={8} fontFamily={FN} fontWeight="600">{p.calibre}A{p.curva?` ${p.curva}`:''}</text>}
         {p.sensitivity && <text x={16} y={52} fill={muted} fontSize={7} fontFamily={FN}>{p.sensitivity}mA</text>}
+      </g>);
+    case 'subcuadro': {
+      const scW = p.width || 60;
+      const scH = p.height || 40;
+      return (<g>
+        <line x1={0} y1={0} x2={0} y2={4} stroke={color} strokeWidth={1.5} />
+        <rect x={-scW/2} y={4} width={scW} height={scH} fill="none" stroke={color} strokeWidth={1.5} rx={3} strokeDasharray="6 3" />
+        <text x={0} y={scH/2+6} fill={color} fontSize={8} fontFamily={FN} textAnchor="middle" fontWeight="600">{p.label || 'SC'}</text>
+        <line x1={0} y1={4+scH} x2={0} y2={4+scH+4} stroke={color} strokeWidth={1.5} />
+      </g>);
+    }
+    case 'protector_sobretensiones':
+      return (<g>
+        <line x1={0} y1={0} x2={0} y2={6} stroke={color} strokeWidth={1.5} />
+        <rect x={-8} y={6} width={16} height={26} fill="none" stroke={color} strokeWidth={1.5} rx={2} />
+        <text x={0} y={22} fill={color} fontSize={9} fontFamily={FN} textAnchor="middle" fontWeight="bold">SPD</text>
+        <line x1={0} y1={32} x2={0} y2={44} stroke={color} strokeWidth={1.5} />
+        {/* Earth connection */}
+        <line x1={0} y1={38} x2={10} y2={38} stroke={C.earth} strokeWidth={1} />
+        <line x1={7} y1={36} x2={13} y2={36} stroke={C.earth} strokeWidth={1.2} />
+        <line x1={8} y1={38} x2={12} y2={38} stroke={C.earth} strokeWidth={1} />
+        <line x1={9} y1={40} x2={11} y2={40} stroke={C.earth} strokeWidth={0.8} />
+        {p.label && <text x={-14} y={22} fill={muted} fontSize={7} fontFamily={FN} textAnchor="end">{p.label}</text>}
       </g>);
     default:
       return <rect x={-10} y={0} width={20} height={20} fill="none" stroke={color} strokeWidth={1} strokeDasharray="3 2" />;
@@ -708,8 +731,9 @@ export function UnifilarEditor({ installationId, initialTemplate, onClose, insta
     setTimeout(() => { isUndoRedoRef.current = false; }, 0);
   }, [state]);
 
-  // Load from API — ALWAYS generate from current circuits/differentials
+  // Load from API — ALWAYS generate from current circuits/differentials (v1) or panel nodes (v2)
   const [hasSavedLayout, setHasSavedLayout] = useState(false);
+  const panelVersion = (installationData as any)?.panelVersion ?? 'v1';
   useEffect(() => {
     if (initialTemplate) return;
     (async () => {
@@ -719,37 +743,51 @@ export function UnifilarEditor({ installationId, initialTemplate, onClose, insta
         unifilarApi.getLayout(installationId).then(saved => {
           if (saved?.layoutJson) setHasSavedLayout(true);
         }).catch(() => {});
-        // Always generate from current installation data
-        const [instRes, panelRes, circuitsRes, calcRes] = await Promise.all([
-          installationsApi.get(installationId).then(d => ({ data: d })),
-          panelsApi.get(installationId).then(d => ({ data: d })).catch(() => ({ data: null })),
-          circuitsApi.list(installationId).then(d => ({ data: d })),
-          calculationsApi.getLatest(installationId),
-        ]);
-        // Merge calculation results into circuit data (engine stores results in snapshot, not on circuit records)
-        let circuits = circuitsRes.data;
-        if (calcRes?.resultSnapshot) {
-          const snap = calcRes.resultSnapshot as any;
-          const calcCircuits: any[] = snap.circuits || [];
-          const calcMap = new Map<string, any>();
-          for (const cr of calcCircuits) calcMap.set(cr.id, cr);
-          circuits = circuits.map((c: any) => {
-            const cr = calcMap.get(c.id);
-            if (!cr) return c;
-            return {
-              ...c,
-              calculatedSection: c.calculatedSection ?? cr.sectionMm2,
-              voltageDrop: c.voltageDrop ?? cr.voltageDropPct,
-              assignedBreaker: c.assignedBreaker ?? `${cr.breakerRatingA}A curva ${cr.breakerCurve}`,
-            };
-          });
+
+        if (panelVersion === 'v2') {
+          // ── v2: generate from PanelNode tree ──
+          const [instRes, panelNodesRes] = await Promise.all([
+            installationsApi.get(installationId),
+            panelNodesApi.list(installationId),
+          ]);
+          const tmpl = generateFromPanelNodes(
+            instRes as unknown as Parameters<typeof generateFromPanelNodes>[0],
+            panelNodesRes as unknown as Parameters<typeof generateFromPanelNodes>[1],
+          );
+          dispatch({ type: 'LOAD_TEMPLATE', template: tmpl });
+        } else {
+          // ── v1: generate from Differential + Circuit (existing behavior) ──
+          const [instRes, panelRes, circuitsRes, calcRes] = await Promise.all([
+            installationsApi.get(installationId).then(d => ({ data: d })),
+            panelsApi.get(installationId).then(d => ({ data: d })).catch(() => ({ data: null })),
+            circuitsApi.list(installationId).then(d => ({ data: d })),
+            calculationsApi.getLatest(installationId),
+          ]);
+          // Merge calculation results into circuit data
+          let circuits = circuitsRes.data;
+          if (calcRes?.resultSnapshot) {
+            const snap = calcRes.resultSnapshot as any;
+            const calcCircuits: any[] = snap.circuits || [];
+            const calcMap = new Map<string, any>();
+            for (const cr of calcCircuits) calcMap.set(cr.id, cr);
+            circuits = circuits.map((c: any) => {
+              const cr = calcMap.get(c.id);
+              if (!cr) return c;
+              return {
+                ...c,
+                calculatedSection: c.calculatedSection ?? cr.sectionMm2,
+                voltageDrop: c.voltageDrop ?? cr.voltageDropPct,
+                assignedBreaker: c.assignedBreaker ?? `${cr.breakerRatingA}A curva ${cr.breakerCurve}`,
+              };
+            });
+          }
+          const tmpl = generateFromAPI(
+            instRes.data as unknown as Parameters<typeof generateFromAPI>[0],
+            panelRes.data,
+            circuits as unknown as Parameters<typeof generateFromAPI>[2],
+          );
+          dispatch({ type: 'LOAD_TEMPLATE', template: tmpl });
         }
-        const tmpl = generateFromAPI(
-          instRes.data as unknown as Parameters<typeof generateFromAPI>[0],
-          panelRes.data,
-          circuits as unknown as Parameters<typeof generateFromAPI>[2],
-        );
-        dispatch({ type: 'LOAD_TEMPLATE', template: tmpl });
       } catch (err: any) {
         console.error('Unifilar API error:', err);
         setLoadError(err.message || 'No se pudieron cargar los datos de la instalación');
@@ -757,7 +795,7 @@ export function UnifilarEditor({ installationId, initialTemplate, onClose, insta
         setLoading(false);
       }
     })();
-  }, [installationId, initialTemplate]);
+  }, [installationId, initialTemplate, panelVersion]);
 
   // Auto-save on close
   const handleClose = useCallback(async () => {

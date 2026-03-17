@@ -8,26 +8,21 @@ import { getTemplatesForSupplyType, type CircuitTemplate } from '@/lib/schemas';
 import {
   Plus,
   Trash2,
-  Save,
   Loader2,
   CheckCircle2,
   Wand2,
-  Calculator,
   AlertTriangle,
   Settings2,
   X,
   ChevronDown,
   ChevronRight,
   Zap,
-  Cable,
   ShieldCheck,
   ShieldAlert,
   ArrowRightLeft,
   Info,
   XCircle,
 } from 'lucide-react';
-import { CalculationDisclaimer } from '@/components/legal/calculation-disclaimer';
-import { NormativeVersionBanner } from '@/components/legal/normative-version-banner';
 
 // ─── Constantes ──────────────────────────────────────────────
 
@@ -331,7 +326,7 @@ function validateBeforeCalc(
 
 // ─── Props ───────────────────────────────────────────────────
 
-export interface CuadroFormHandle { addRow: () => void; }
+export interface CuadroFormHandle { addRow: () => void; calculate: () => void; }
 
 interface CuadroFormProps {
   circuits: Circuit[];
@@ -353,8 +348,9 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
   circuits, supplyType, contractedPower, supplyResult, installation, installationId,
   calculation, isSaving, isCalculating, onSave, onCalculate,
 }, ref) {
-  // ── IGA state
-  const [iga, setIga] = useState<IgaState>({ calibreA: 25, curve: 'C', powerCutKa: 6, poles: 2, voltage: 230 });
+  // ── IGA state — default calibre based on supplyType (ITC-BT-10: basic=25A, elevated=40A)
+  const defaultIgaCalibre = supplyType === 'VIVIENDA_ELEVADA' ? 40 : 25;
+  const [iga, setIga] = useState<IgaState>({ calibreA: defaultIgaCalibre, curve: 'C', powerCutKa: 6, poles: 2, voltage: 230 });
   // ── DI state
   const [di, setDi] = useState<DiState>({ seccionDi: null, materialDi: 'CU', longitudDi: null, aislamientoDi: 'XLPE', tipoInstalacionDi: 'E.T.F.' });
   // ── Differentials
@@ -370,6 +366,7 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
   const [expandedJustification, setExpandedJustification] = useState<Set<string>>(new Set());
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const failedKeys = useMemo(() => new Set(validationErrors.map((e) => e.circuitKey)), [validationErrors]);
+  const [showWarnings, setShowWarnings] = useState(false);
 
   // ── Load panel + DI data on mount
   useEffect(() => {
@@ -388,8 +385,10 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
         // Load panel with diffs
         const panel = await panelsApi.get(installationId);
         if (panel) {
+          // ITC-BT-10: enforce minimum IGA (basic=25A, elevated=40A)
+          const minIga = supplyType === 'VIVIENDA_ELEVADA' ? 40 : 25;
           setIga({
-            calibreA: panel.igaCalibreA, curve: panel.igaCurve,
+            calibreA: Math.max(panel.igaCalibreA, minIga), curve: panel.igaCurve,
             powerCutKa: panel.igaPowerCutKa, poles: panel.igaPoles, voltage: panel.voltage,
           });
           setDiffs(panel.differentials.map((d) => ({
@@ -535,7 +534,8 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
 
   const addRowRef = useRef(addUnassignedCircuit);
   addRowRef.current = addUnassignedCircuit;
-  useImperativeHandle(ref, () => ({ addRow: () => addRowRef.current() }), []);
+  const calculateRef = useRef<() => void>(() => {});
+  // calculateRef.current assigned after handleCalculate is defined below
 
   // Move circuit to a different differential
   const moveCircuit = useCallback((rowKey: string, targetDiffIdx: number | null) => {
@@ -711,6 +711,16 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
 
   // ── Calculate handler
   const handleCalculate = useCallback(async () => {
+    // No circuits or differentials — inform user
+    if (rows.length === 0) {
+      alert('No hay circuitos para verificar. Añade al menos un circuito.');
+      return;
+    }
+    if (diffs.length === 0) {
+      alert('No hay diferenciales. Añade al menos un diferencial antes de verificar.');
+      return;
+    }
+
     const errors = validateBeforeCalc(rows, diffs, supplyType, iga.poles);
     setValidationErrors(errors);
     if (errors.length > 0) return;
@@ -720,14 +730,13 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
       alert('Todos los circuitos deben estar asignados a un diferencial antes de calcular.');
       return;
     }
-    if (diffs.length === 0) {
-      alert('Añade al menos un diferencial antes de calcular.');
-      return;
-    }
 
     if (dirty) await handleSave();
     await onCalculate();
   }, [rows, diffs, supplyType, iga.poles, unassignedRows.length, dirty, handleSave, onCalculate]);
+
+  calculateRef.current = handleCalculate;
+  useImperativeHandle(ref, () => ({ addRow: () => addRowRef.current(), calculate: () => calculateRef.current() }), []);
 
   // ── Render helpers
   const renderCircuitTable = (circuitRows: CircuitRow[], diffIdx: number | null) => {
@@ -1052,191 +1061,16 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
     <div className="space-y-6">
       <style>{noSpinnerStyle}</style>
 
-      {/* ═══ RESULTADOS DEL CÁLCULO (solo tras calcular) ═══ */}
-      {calculation && supplyResult && (
-        <div className="space-y-3">
-          {/* a) Card suministro */}
-          <div className={`rounded-lg border p-4 ${supplyResult.isValid ? 'border-emerald-500/30 bg-emerald-50' : 'border-amber-500/30 bg-amber-50'}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <Zap className={`h-4 w-4 ${supplyResult.isValid ? 'text-emerald-600' : 'text-amber-600'}`} />
-              <span className={`text-sm font-semibold ${supplyResult.isValid ? 'text-emerald-600' : 'text-amber-600'}`}>
-                Suministro calculado {supplyResult.isValid ? '— cumple REBT' : '— revisar advertencias'}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 text-sm">
-              <div>
-                <span className="text-surface-500 text-xs">Potencia Máx. Admisible</span>
-                <p className="font-medium">{(supplyResult.designPowerW / 1000).toFixed(2)} kW</p>
-              </div>
-              <div>
-                <span className="text-surface-500 text-xs">IGA</span>
-                <p className="font-bold text-blue-600">{supplyResult.iga.ratingA} A</p>
-              </div>
-              <div>
-                <span className="text-surface-500 text-xs">Sección DI</span>
-                <p className="font-bold text-blue-600">{supplyResult.di.sectionMm2} mm²</p>
-              </div>
-              <div>
-                <span className="text-surface-500 text-xs">CdT DI</span>
-                <p className={`font-medium ${supplyResult.di.cdtResult.cdtCompliant ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {supplyResult.di.cdtResult.voltageDropPct.toFixed(3)}% (lím. {supplyResult.di.cdtResult.cdtLimitPct}%)
-                </p>
-              </div>
-              <div>
-                <span className="text-surface-500 text-xs">Conductor PE</span>
-                <p className="font-medium">{supplyResult.protectionConductorMm2} mm²</p>
-              </div>
-              <div>
-                <span className="text-surface-500 text-xs">Diferenciales</span>
-                <p className="font-medium text-xs">
-                  {diffs.length > 0
-                    ? diffs.map(d => `${d.name} ${d.calibreA}A/${d.sensitivityMa}mA tipo ${d.type}`).join(' · ')
-                    : `${supplyResult.differentials.length} × ${supplyResult.differentials[0]?.sensitivityMa ?? 30} mA (sugeridos)`}
-                </p>
-              </div>
-            </div>
-            {supplyResult.warnings && supplyResult.warnings.length > 0 && (
-              <div className="mt-3 border-t border-surface-200 pt-2">
-                {supplyResult.warnings.map((w: string, i: number) => (
-                  <p key={i} className="text-xs text-amber-600 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" /> {w}
-                  </p>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* b) Banner normativo azul */}
-          <NormativeVersionBanner />
-
-          {/* c) Disclaimer amarillo */}
-          <CalculationDisclaimer />
-
-          {/* d) Banner compliance */}
-          {calcCompliance && (
-            <div className={`rounded-lg border px-4 py-3 flex items-start gap-3 ${
-              calcCompliance.nonCompliant === 0
-                ? 'border-emerald-500/30 bg-emerald-50'
-                : 'border-red-500/30 bg-red-50'
-            }`}>
-              {calcCompliance.nonCompliant === 0 ? (
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
-              ) : (
-                <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-              )}
-              <div>
-                <p className={`text-sm font-semibold ${calcCompliance.nonCompliant === 0 ? 'text-emerald-800' : 'text-red-800'}`}>
-                  {calcCompliance.nonCompliant === 0
-                    ? 'Todos los circuitos cumplen con el REBT'
-                    : `${calcCompliance.nonCompliant} circuito${calcCompliance.nonCompliant !== 1 ? 's' : ''} no cumple${calcCompliance.nonCompliant !== 1 ? 'n' : ''}`}
-                </p>
-                <p className={`text-xs mt-0.5 ${calcCompliance.nonCompliant === 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {calcCompliance.nonCompliant === 0
-                    ? 'Instalación conforme al RD 842/2002.'
-                    : 'Revisa los circuitos marcados en rojo.'}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ═══ DERIVACIÓN INDIVIDUAL ═══ */}
-      <div className="rounded-lg border border-amber-500/30 bg-amber-50 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Cable className="h-4 w-4 text-amber-600" />
-          <h3 className="text-sm font-semibold text-amber-800">Derivación Individual (DI)</h3>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div>
-            <label className="text-[11px] text-surface-500 block mb-1">Sección (mm²)</label>
-            <select value={di.seccionDi ?? ''} onChange={(e) => updateDi('seccionDi', e.target.value ? Number(e.target.value) : null)} className={`${selectCls}`}>
-              <option value="">—</option>
-              {DI_SECTIONS.map((s) => <option key={s} value={s}>{s} mm²</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[11px] text-surface-500 block mb-1">Material</label>
-            <select value={di.materialDi} onChange={(e) => updateDi('materialDi', e.target.value)} className={`${selectCls}`}>
-              {DI_MATERIALS.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[11px] text-surface-500 block mb-1">Longitud (m)</label>
-            <input type="number" value={di.longitudDi ?? ''} onChange={(e) => updateDi('longitudDi', e.target.value ? Number(e.target.value) : null)} className={`${inputCls} w-full`} placeholder="m" min={0} step={0.1} />
-          </div>
-          <div>
-            <label className="text-[11px] text-surface-500 block mb-1">Aislamiento</label>
-            <select value={di.aislamientoDi} onChange={(e) => updateDi('aislamientoDi', e.target.value)} className={`${selectCls}`}>
-              {DI_INSULATIONS.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[11px] text-surface-500 block mb-1">Tipo instalación</label>
-            <select value={di.tipoInstalacionDi} onChange={(e) => updateDi('tipoInstalacionDi', e.target.value)} className={`${selectCls}`}>
-              {DI_INSTALL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* ═══ IGA ═══ */}
-      <div className="rounded-lg border border-blue-500/30 bg-blue-50 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Zap className="h-4 w-4 text-blue-600" />
-          <h3 className="text-sm font-semibold text-blue-800">Interruptor General Automático (IGA)</h3>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          <div>
-            <label className="text-[11px] text-surface-500 block mb-1">Calibre (A)</label>
-            <select value={iga.calibreA} onChange={(e) => updateIga('calibreA', Number(e.target.value))} className={`${selectCls}`}>
-              {IGA_RATINGS.map((a) => <option key={a} value={a}>{a}A</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[11px] text-surface-500 block mb-1">P. Máx. Adm.</label>
-            <div className="h-7 flex items-center text-xs font-medium text-blue-700 bg-blue-500/15 rounded px-2">{maxPowerKw} kW</div>
-          </div>
-          <div>
-            <label className="text-[11px] text-surface-500 block mb-1">Tensión</label>
-            <select value={iga.voltage} onChange={(e) => updateIga('voltage', Number(e.target.value))} className={`${selectCls}`}>
-              <option value={230}>230V mono</option>
-              <option value={400}>400V tri</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-[11px] text-surface-500 block mb-1">Curva</label>
-            <select value={iga.curve} onChange={(e) => updateIga('curve', e.target.value)} className={`${selectCls}`}>
-              {CURVES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[11px] text-surface-500 block mb-1">P. Corte</label>
-            <select value={iga.powerCutKa} onChange={(e) => updateIga('powerCutKa', Number(e.target.value))} className={`${selectCls}`}>
-              {POWER_CUT_KA.map((k) => <option key={k} value={k}>{k} kA</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[11px] text-surface-500 block mb-1">Polos</label>
-            <div className="h-7 flex items-center text-xs text-surface-700 bg-surface-100 rounded px-2">{iga.poles}P</div>
-          </div>
-        </div>
-        {!contractedOk && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded p-2">
-            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-            P. contratada ({((contractedPower ?? 0) / 1000).toFixed(2)} kW) &gt; P. máx. admisible ({maxPowerKw} kW). Sube el calibre del IGA.
-          </div>
-        )}
-      </div>
-
-      {/* ═══ CUADRO ELÉCTRICO: Diferenciales + Circuitos ═══ */}
+      {/* ═══ CUADRO ELÉCTRICO: IGA + Diferenciales + Circuitos ═══ */}
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h3 className="text-sm font-semibold text-surface-700">Cuadro Eléctrico</h3>
-            <p className="text-xs text-surface-500">
-              {rows.length} circuito{rows.length !== 1 ? 's' : ''} · {diffs.length} diferencial{diffs.length !== 1 ? 'es' : ''} · P. máx.: {(displayMaxPowerW / 1000).toFixed(2)} kW
-            </p>
+            <h3 className="text-sm font-semibold text-surface-700">
+              Cuadro El&#233;ctrico
+              <span className="font-normal text-xs text-surface-500 ml-2">
+                {rows.length} circuito{rows.length !== 1 ? 's' : ''} · {diffs.length} diferencial{diffs.length !== 1 ? 'es' : ''} · P.m&#225;x: {(displayMaxPowerW / 1000).toFixed(2)} kW
+              </span>
+            </h3>
           </div>
           <div className="flex items-center gap-2">
             {rows.length === 0 && supplyType && supplyType !== 'LOCAL_COMERCIAL' && (
@@ -1247,9 +1081,58 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
             )}
             <Button variant="outline" size="sm" onClick={addDiff}>
               <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Añadir diferencial
+              A&#241;adir diferencial
             </Button>
           </div>
+        </div>
+
+        {/* IGA row */}
+        <div className="rounded-lg bg-surface-50 border border-surface-200 px-4 py-2.5">
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="h-3.5 w-3.5 text-blue-600" />
+            <span className="text-xs font-semibold text-surface-700">IGA</span>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            <div>
+              <label className="text-[11px] text-surface-500 block mb-1">Calibre (A)</label>
+              <select value={iga.calibreA} onChange={(e) => updateIga('calibreA', Number(e.target.value))} className={`${selectCls}`}>
+                {IGA_RATINGS.map((a) => <option key={a} value={a}>{a}A</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] text-surface-500 block mb-1">Tensi&#243;n</label>
+              <select value={iga.voltage} onChange={(e) => updateIga('voltage', Number(e.target.value))} className={`${selectCls}`}>
+                <option value={230}>230V mono</option>
+                <option value={400}>400V tri</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] text-surface-500 block mb-1">Curva</label>
+              <select value={iga.curve} onChange={(e) => updateIga('curve', e.target.value)} className={`${selectCls}`}>
+                {CURVES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] text-surface-500 block mb-1">P. Corte</label>
+              <select value={iga.powerCutKa} onChange={(e) => updateIga('powerCutKa', Number(e.target.value))} className={`${selectCls}`}>
+                {POWER_CUT_KA.map((k) => <option key={k} value={k}>{k} kA</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] text-surface-500 block mb-1">Polos</label>
+              <div className="h-7 flex items-center text-xs text-surface-700 bg-surface-100 rounded px-2">{iga.poles}P</div>
+            </div>
+            <div>
+              <label className="text-[11px] text-surface-500 block mb-1">P. M&#225;x. Adm.</label>
+              <div className="h-7 flex items-center text-xs font-medium text-blue-700 bg-blue-500/15 rounded px-2">{maxPowerKw} kW</div>
+            </div>
+          </div>
+          {!contractedOk && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded p-2">
+              <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+              P. contratada ({((contractedPower ?? 0) / 1000).toFixed(2)} kW) &gt; P. m&#225;x. admisible ({maxPowerKw} kW). Sube el calibre del IGA.
+            </div>
+          )}
         </div>
 
         {/* Empty state */}
@@ -1367,29 +1250,6 @@ export const CuadroForm = forwardRef<CuadroFormHandle, CuadroFormProps>(function
           </div>
         )}
       </div>
-
-      {/* ═══ ACTION BUTTONS ═══ */}
-      {(rows.length > 0 || diffs.length > 0) && (
-        <div className="flex flex-wrap items-center gap-3 border-t border-surface-200 pt-5">
-          <Button onClick={handleSave} disabled={saving || isSaving || !dirty} variant="outline">
-            {saving || isSaving ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando…</>
-            ) : saved ? (
-              <><CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" /> Guardado</>
-            ) : (
-              <><Save className="mr-2 h-4 w-4" /> Guardar cuadro</>
-            )}
-          </Button>
-          <Button onClick={handleCalculate} disabled={isCalculating || rows.length === 0 || diffs.length === 0}>
-            {isCalculating ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Calculando…</>
-            ) : (
-              <><Calculator className="mr-2 h-4 w-4" /> Calcular instalación</>
-            )}
-          </Button>
-          {dirty && <span className="text-xs text-amber-600">Cambios sin guardar</span>}
-        </div>
-      )}
 
       {/* ═══ VALIDATION ERRORS ═══ */}
       {validationErrors.length > 0 && (

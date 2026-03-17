@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useCallback, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
-import { documentsApi } from '@/lib/api-client';
-import type { Document, CalculationResult, ReviewStatus } from '@/lib/types';
-import { DOCUMENT_TYPE_LABELS, REVIEW_STATUS_LABELS, formatDatetime } from '@/lib/types';
+import { documentsApi, installationDocsApi } from '@/lib/api-client';
+import type { Document, CalculationResult, ReviewStatus, InstallationDocument } from '@/lib/types';
+import { DOCUMENT_TYPE_LABELS, REVIEW_STATUS_LABELS, formatDatetime, formatFileSize } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   FileText, FileDown, Loader2, AlertTriangle,
   CheckCircle2, ScrollText, Zap, FileWarning, Trash2, FileSpreadsheet, FileInput,
   Upload, Eye, RefreshCw, X, Search, MessageSquareWarning, ArrowRight, ChevronRight,
+  Paperclip, Plus,
 } from 'lucide-react';
 import { UnifilarEditor } from '@/components/unifilar/unifilar-editor';
 import { UpgradeModal } from '@/components/upgrade-modal';
@@ -102,6 +103,13 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
   const [reportScreenshot, setReportScreenshot] = useState<File | null>(null);
   const [submittingReport, setSubmittingReport] = useState(false);
 
+  // ── Uploaded docs (adjuntos) state ──
+  const [uploadedDocs, setUploadedDocs] = useState<InstallationDocument[]>([]);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentDesc, setAttachmentDesc] = useState('');
+
   // ── Toast state ──
   const [toast, setToast] = useState<string | null>(null);
 
@@ -130,6 +138,13 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
 
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
   useEffect(() => { onDocCountChange?.(documents.length); }, [documents.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch uploaded (adjuntos) docs
+  const fetchUploadedDocs = useCallback(async () => {
+    try { const docs = await installationDocsApi.list(installationId); setUploadedDocs(docs); }
+    catch { setUploadedDocs([]); }
+  }, [installationId]);
+  useEffect(() => { fetchUploadedDocs(); }, [fetchUploadedDocs]);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
@@ -247,29 +262,12 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
     finally { setGenerating(null); }
   };
 
-  // CIE — now auto-opens preview instead of auto-download
-  const handleGenerateCie = async (format: 'xls' | 'pdf') => {
-    const key = `CERTIFICADO_${format}`; setGenerating(key); setError(null);
+  // CIE — saves to DB and shows in list (no auto-download)
+  const handleGenerateCie = async () => {
+    setGenerating('CERTIFICADO'); setError(null);
     try {
-      const { blob, filename } = await documentsApi.generateCie(installationId, format);
-      await fetchDocuments();
-      // If PDF, open preview of the newly generated doc
-      if (format === 'pdf') {
-        // Refresh docs list then open preview of the latest CIE
-        const docs = await documentsApi.list(installationId);
-        setDocuments(docs);
-        const latestCie = docs
-          .filter(d => d.type === 'CERTIFICADO')
-          .sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime())[0];
-        if (latestCie) openPreview(latestCie);
-      } else {
-        // XLS: direct download (can't preview)
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a'); link.href = url;
-        link.download = filename;
-        document.body.appendChild(link); link.click(); document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      }
+      const doc = await documentsApi.generateCie(installationId);
+      setDocuments((prev) => [doc, ...prev]);
     } catch (err: any) { if (!isCertLimitError(err)) setError(err?.response?.data?.message || 'Error al generar el CIE'); }
     finally { setGenerating(null); }
   };
@@ -298,7 +296,7 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
     finally { setGenerating(null); }
   };
 
-  const requestCieGeneration = (format: 'xls' | 'pdf') => {
+  const requestCieGeneration = () => {
     if (!acceptedResponsibility) {
       setError('Debes aceptar la declaración de responsabilidad antes de generar documentos oficiales.');
       return;
@@ -307,7 +305,7 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
       try {
         await consentApi.log({ consentType: 'certificate_responsibility', documentVersion: LEGAL_VERSIONS.TOS, accepted: true, method: 'certificate_modal', certificateId: installationId });
       } catch { /* ignore */ }
-      await handleGenerateCie(format);
+      await handleGenerateCie();
     });
   };
 
@@ -327,8 +325,8 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
   // Expose generate methods via ref
   const generateMtdFn = useRef(() => handleGenerate('MEMORIA_TECNICA'));
   generateMtdFn.current = () => handleGenerate('MEMORIA_TECNICA');
-  const generateCieFn = useRef(() => requestCieGeneration('pdf'));
-  generateCieFn.current = () => requestCieGeneration('pdf');
+  const generateCieFn = useRef(() => requestCieGeneration());
+  generateCieFn.current = () => requestCieGeneration();
   useImperativeHandle(ref, () => ({
     generateMtd: () => generateMtdFn.current(),
     generateCie: () => generateCieFn.current(),
@@ -394,7 +392,7 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
   // ── Generate action per type ──
   const handleGenerateForType = (type: DocType) => {
     switch (type) {
-      case 'CERTIFICADO': requestCieGeneration('pdf'); break;
+      case 'CERTIFICADO': requestCieGeneration(); break;
       case 'MEMORIA_TECNICA': handleGenerate('MEMORIA_TECNICA'); break;
       case 'SOLICITUD': requestSolicitudGeneration('pdf'); break;
       case 'UNIFILAR': setShowUnifilar(true); break;
@@ -622,7 +620,14 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
                             <Icon className="h-4 w-4" />
                           </div>
                           <div>
-                            <p className="font-medium text-surface-700">{DOC_TYPE_LABELS_SHORT[type]}</p>
+                            <p className="font-medium text-surface-700">
+                              {DOC_TYPE_LABELS_SHORT[type]}
+                              {type === 'CERTIFICADO' && installation?.identificadorCie && (
+                                <span className="ml-2 text-xs font-mono text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">
+                                  {installation.identificadorCie}
+                                </span>
+                              )}
+                            </p>
                             {doc && (
                               <p className="text-xs text-surface-400 mt-0.5">{formatDatetime(doc.generatedAt)}</p>
                             )}
@@ -674,14 +679,10 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
                           {status === 'none' && (
                             <>
                               {type === 'CERTIFICADO' ? (
-                                <div className="flex gap-1">
-                                  <Button size="sm" variant="outline" disabled={!canGenerate(type) || isGenerating(type)} onClick={() => requestCieGeneration('xls')}>
-                                    {generating === 'CERTIFICADO_xls' ? <Loader2 className="h-3 w-3 animate-spin" /> : <><FileSpreadsheet className="mr-1 h-3 w-3" />Excel</>}
-                                  </Button>
-                                  <Button size="sm" disabled={!canGenerate(type) || isGenerating(type)} onClick={() => requestCieGeneration('pdf')}>
-                                    {generating === 'CERTIFICADO_pdf' ? <Loader2 className="h-3 w-3 animate-spin" /> : <><FileText className="mr-1 h-3 w-3" />PDF</>}
-                                  </Button>
-                                </div>
+                                <Button size="sm" disabled={!canGenerate(type) || isGenerating(type)} onClick={() => requestCieGeneration()}>
+                                  {isGenerating(type) ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <FileSpreadsheet className="mr-1 h-3 w-3" />}
+                                  Generar CIE
+                                </Button>
                               ) : type === 'SOLICITUD' ? (
                                 <div className="flex gap-1">
                                   <Button size="sm" variant="outline" disabled={!canGenerate(type) || isGenerating(type)} onClick={() => requestSolicitudGeneration('docx')}>
@@ -700,15 +701,23 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
                             </>
                           )}
 
-                          {/* Pendiente revisión → Revisar */}
+                          {/* Pendiente revisión → Revisar (or Descargar for XLS types like CIE) */}
                           {status === 'pending_review' && doc && (
                             <>
-                              <Button size="sm" onClick={() => openPreview(doc)}>
-                                <Eye className="mr-1 h-3 w-3" />Revisar
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => handleDownload(doc)}>
-                                <FileDown className="mr-1 h-3 w-3" />Descargar
-                              </Button>
+                              {doc.mimeType === 'application/vnd.ms-excel' ? (
+                                <Button size="sm" onClick={() => handleDownload(doc)}>
+                                  <FileDown className="mr-1 h-3 w-3" />Descargar
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button size="sm" onClick={() => openPreview(doc)}>
+                                    <Eye className="mr-1 h-3 w-3" />Revisar
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleDownload(doc)}>
+                                    <FileDown className="mr-1 h-3 w-3" />Descargar
+                                  </Button>
+                                </>
+                              )}
                               <Button size="sm" variant="outline" className="text-red-500 hover:text-red-300 hover:bg-red-50" onClick={() => { setDeleteTarget(doc); setDeleteConfirm(''); }}>
                                 <Trash2 className="h-3 w-3" />
                               </Button>
@@ -784,6 +793,125 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
           </div>
         )}
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+           DOCUMENTOS ADJUNTOS
+         ══════════════════════════════════════════════════════════════ */}
+      <div>
+        <h3 className="text-sm font-semibold text-surface-50 mb-3 flex items-center gap-2">
+          <Paperclip className="h-4 w-4" />Documentos adjuntos
+        </h3>
+
+        {uploadedDocs.length > 0 && (
+          <div className="rounded-lg border border-surface-200 overflow-hidden mb-3">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-surface-50 text-left">
+                  <th className="px-4 py-2.5 font-medium text-surface-500">Archivo</th>
+                  <th className="px-4 py-2.5 font-medium text-surface-500">Tamaño</th>
+                  <th className="px-4 py-2.5 font-medium text-surface-500">Descripción</th>
+                  <th className="px-4 py-2.5 font-medium text-surface-500 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-100">
+                {uploadedDocs.map((doc) => (
+                  <tr key={doc.id} className="bg-white hover:bg-surface-50/50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Paperclip className="h-4 w-4 text-surface-400 flex-shrink-0" />
+                        <span className="font-medium text-surface-700 truncate max-w-[200px]">{doc.fileName}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-surface-500">{formatFileSize(doc.fileSize)}</td>
+                    <td className="px-4 py-3 text-surface-500">{doc.description || '—'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <Button size="sm" variant="outline" onClick={async () => {
+                          try {
+                            const blob = await installationDocsApi.download(installationId, doc.id);
+                            const url = window.URL.createObjectURL(blob);
+                            const link = document.createElement('a'); link.href = url; link.download = doc.fileName;
+                            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                            window.URL.revokeObjectURL(url);
+                          } catch { setError('Error al descargar'); }
+                        }}>
+                          <FileDown className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={async () => {
+                          try {
+                            await installationDocsApi.remove(installationId, doc.id);
+                            setUploadedDocs((prev) => prev.filter((d) => d.id !== doc.id));
+                          } catch { setError('Error al eliminar'); }
+                        }}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {uploadedDocs.length === 0 && (
+          <p className="text-sm text-surface-400 mb-3">No hay documentos adjuntos.</p>
+        )}
+
+        <Button size="sm" variant="outline" onClick={() => { setUploadModalOpen(true); setAttachmentFile(null); setAttachmentDesc(''); }}>
+          <Plus className="mr-1.5 h-3.5 w-3.5" />Subir documento
+        </Button>
+      </div>
+
+      {/* Upload attachment modal */}
+      {uploadModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <h3 className="text-sm font-semibold text-surface-900 mb-4">Subir documento adjunto</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-surface-700 mb-1">Archivo (PDF, JPG, PNG — máx. 10 MB) *</label>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    if (f && f.size > 10 * 1024 * 1024) { alert('El archivo no puede superar 10 MB'); return; }
+                    setAttachmentFile(f);
+                  }}
+                  className="block w-full text-sm text-surface-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-surface-100 file:text-surface-600 hover:file:bg-surface-200"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-surface-700 mb-1">Descripción (opcional)</label>
+                <input
+                  type="text"
+                  value={attachmentDesc}
+                  onChange={(e) => setAttachmentDesc(e.target.value)}
+                  placeholder="Ej: Proyecto técnico, foto cuadro..."
+                  className="w-full h-9 rounded-md border border-surface-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" size="sm" onClick={() => setUploadModalOpen(false)}>Cancelar</Button>
+              <Button size="sm" disabled={!attachmentFile || uploadingAttachment} onClick={async () => {
+                if (!attachmentFile) return;
+                setUploadingAttachment(true);
+                try {
+                  const doc = await installationDocsApi.upload(installationId, attachmentFile, attachmentDesc || undefined);
+                  setUploadedDocs((prev) => [doc, ...prev]);
+                  setUploadModalOpen(false);
+                } catch { setError('Error al subir el documento'); }
+                finally { setUploadingAttachment(false); }
+              }}>
+                {uploadingAttachment ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Upload className="mr-1 h-3 w-3" />}
+                Subir
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════
            SECTION PICKER MODAL

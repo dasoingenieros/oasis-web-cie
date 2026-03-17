@@ -13,6 +13,7 @@ import { LocalidadCombobox } from '@/components/localidad-combobox';
 import {
   User, Building2, Shield, Wrench, Save, Loader2, CheckCircle2,
   Pencil, Trash2, Plus, Star, GraduationCap, X, Send, Eye, EyeOff, Wifi, XCircle,
+  FileText, Upload, FileDown,
 } from 'lucide-react';
 
 const TIPOS_VIA = TIPO_VIA_OPTIONS;
@@ -93,6 +94,12 @@ export default function ConfiguracionPage() {
   const [portalTestResult, setPortalTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Tenant documents state
+  const [certEmpresaName, setCertEmpresaName] = useState<string | null>(null);
+  const [anexoUsuarioName, setAnexoUsuarioName] = useState<string | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const [deletingDoc, setDeletingDoc] = useState<string | null>(null);
+
   // Load empresa
   useEffect(() => {
     tenantApi.getProfile()
@@ -113,6 +120,8 @@ export default function ConfiguracionPage() {
           empresaEmail: data.empresaEmail ?? '',
           distribuidoraHab: data.distribuidoraHab ?? '',
         });
+        setCertEmpresaName(data.certificadoEmpresaName ?? null);
+        setAnexoUsuarioName(data.anexoUsuarioName ?? null);
       })
       .catch(console.error);
 
@@ -433,6 +442,136 @@ export default function ConfiguracionPage() {
                <><Save className="mr-2 h-3 w-3" />Guardar empresa</>}
             </Button>
             {empresaDirty && <span className="text-xs text-amber-600">Cambios sin guardar</span>}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* DOCUMENTOS DE EMPRESA */}
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-3 space-y-0">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+            <FileText className="h-4 w-4 text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <CardTitle>Documentos de empresa</CardTitle>
+            <p className="text-xs text-surface-500 mt-0.5">Certificado de empresa instaladora y anexo del usuario</p>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Certificado empresa */}
+          <div className="flex items-center justify-between rounded-lg border border-surface-200 p-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <FileText className="h-5 w-5 text-surface-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-surface-700">Certificado de empresa</p>
+                {certEmpresaName ? (
+                  <p className="text-xs text-surface-500 truncate">{certEmpresaName}</p>
+                ) : (
+                  <p className="text-xs text-surface-400">No subido</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {certEmpresaName ? (
+                <>
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    try {
+                      const blob = await tenantApi.downloadCertificadoEmpresa();
+                      const url = window.URL.createObjectURL(blob);
+                      const link = document.createElement('a'); link.href = url; link.download = certEmpresaName;
+                      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                      window.URL.revokeObjectURL(url);
+                    } catch (e) { console.error(e); }
+                  }}>
+                    <FileDown className="mr-1 h-3 w-3" />Descargar
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                    disabled={deletingDoc === 'cert'}
+                    onClick={async () => {
+                      setDeletingDoc('cert');
+                      try { await tenantApi.deleteCertificadoEmpresa(); setCertEmpresaName(null); } catch (e) { console.error(e); }
+                      finally { setDeletingDoc(null); }
+                    }}>
+                    {deletingDoc === 'cert' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                  </Button>
+                </>
+              ) : (
+                <label className="cursor-pointer">
+                  <input type="file" accept=".pdf" className="hidden" onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 10 * 1024 * 1024) { alert('El archivo no puede superar 10 MB'); return; }
+                    setUploadingDoc('cert');
+                    try {
+                      const res = await tenantApi.uploadCertificadoEmpresa(file);
+                      setCertEmpresaName(res.certificadoEmpresaName ?? file.name);
+                    } catch (err) { console.error(err); }
+                    finally { setUploadingDoc(null); e.target.value = ''; }
+                  }} />
+                  <Button size="sm" asChild disabled={uploadingDoc === 'cert'}>
+                    <span>{uploadingDoc === 'cert' ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Upload className="mr-1 h-3 w-3" />}Subir PDF</span>
+                  </Button>
+                </label>
+              )}
+            </div>
+          </div>
+
+          {/* Anexo usuario */}
+          <div className="flex items-center justify-between rounded-lg border border-surface-200 p-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <FileText className="h-5 w-5 text-surface-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-surface-700">Anexo del usuario</p>
+                {anexoUsuarioName ? (
+                  <p className="text-xs text-surface-500 truncate">{anexoUsuarioName}</p>
+                ) : (
+                  <p className="text-xs text-surface-400">No subido</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {anexoUsuarioName ? (
+                <>
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    try {
+                      const blob = await tenantApi.downloadAnexoUsuario();
+                      const url = window.URL.createObjectURL(blob);
+                      const link = document.createElement('a'); link.href = url; link.download = anexoUsuarioName;
+                      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                      window.URL.revokeObjectURL(url);
+                    } catch (e) { console.error(e); }
+                  }}>
+                    <FileDown className="mr-1 h-3 w-3" />Descargar
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                    disabled={deletingDoc === 'anexo'}
+                    onClick={async () => {
+                      setDeletingDoc('anexo');
+                      try { await tenantApi.deleteAnexoUsuario(); setAnexoUsuarioName(null); } catch (e) { console.error(e); }
+                      finally { setDeletingDoc(null); }
+                    }}>
+                    {deletingDoc === 'anexo' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                  </Button>
+                </>
+              ) : (
+                <label className="cursor-pointer">
+                  <input type="file" accept=".pdf" className="hidden" onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 10 * 1024 * 1024) { alert('El archivo no puede superar 10 MB'); return; }
+                    setUploadingDoc('anexo');
+                    try {
+                      const res = await tenantApi.uploadAnexoUsuario(file);
+                      setAnexoUsuarioName(res.anexoUsuarioName ?? file.name);
+                    } catch (err) { console.error(err); }
+                    finally { setUploadingDoc(null); e.target.value = ''; }
+                  }} />
+                  <Button size="sm" asChild disabled={uploadingDoc === 'anexo'}>
+                    <span>{uploadingDoc === 'anexo' ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Upload className="mr-1 h-3 w-3" />}Subir PDF</span>
+                  </Button>
+                </label>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

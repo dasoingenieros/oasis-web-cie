@@ -8,7 +8,7 @@ import type {
   WaitlistDto, Installer, Technician, CreateInstallerDto, CreateTechnicianDto,
   TramitacionExpediente, TramitacionConfig, FeedbackReport, ReviewStatus,
   PanelNode, CreatePanelNodeDto, CalculateTreeResponse, TreeValidation,
-  FieldStatusResponse, FieldConfigResponse,
+  FieldStatusResponse, FieldConfigResponse, InstallationDocument,
 } from './types';
 
 let accessToken: string | null = null;
@@ -129,7 +129,7 @@ export const calculationsApi = {
 export const documentsApi = {
   async list(installationId: string): Promise<Document[]> { const { data } = await api.get<Document[]>(`/installations/${installationId}/documents`); return data; },
   async generate(installationId: string, type: 'MEMORIA_TECNICA' | 'CERTIFICADO' | 'UNIFILAR'): Promise<Document> { const { data } = await api.post<Document>(`/installations/${installationId}/documents/generate`, { type }); return data; },
-  async generateCie(installationId: string, format: 'xls' | 'pdf' = 'xls'): Promise<{ blob: Blob; filename: string }> { const resp = await api.post(`/installations/${installationId}/documents/generate-cie?format=${format}`, {}, { responseType: 'blob', timeout: 60_000 }); const cd = resp.headers['content-disposition'] || ''; const match = cd.match(/filename="?([^";\n]+)"?/); const filename = match ? match[1] : `CIE_${installationId.slice(0, 8)}.${format}`; return { blob: resp.data, filename }; },
+  async generateCie(installationId: string): Promise<Document> { const { data } = await api.post<Document>(`/installations/${installationId}/documents/generate-cie`, {}, { timeout: 60_000 }); return data; },
   async generateSolicitud(installationId: string, format: 'docx' | 'pdf' = 'docx'): Promise<Blob> { const { data } = await api.post(`/installations/${installationId}/documents/generate-solicitud?format=${format}`, {}, { responseType: 'blob', timeout: 60_000 }); return data; },
   async download(installationId: string, documentId: string): Promise<Blob> { const { data } = await api.get(`/installations/${installationId}/documents/${documentId}/download`, { responseType: 'blob' }); return data; },
   async remove(installationId: string, documentId: string): Promise<void> { await api.delete(`/installations/${installationId}/documents/${documentId}`); },
@@ -250,6 +250,44 @@ export const tenantApi = {
   async updateProfile(dto: Record<string, any>): Promise<any> { const { data } = await api.put('/tenant/profile', dto); return data; },
   async getInstallers(): Promise<any[]> { const { data } = await api.get('/tenant/installers'); return data; },
   async updateInstaller(userId: string, dto: Record<string, any>): Promise<any> { const { data } = await api.put(`/tenant/installers/${userId}`, dto); return data; },
+  async uploadCertificadoEmpresa(file: File): Promise<any> {
+    const form = new FormData(); form.append('file', file);
+    const { data } = await api.post('/tenant/documents/certificado-empresa', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30_000 });
+    return data;
+  },
+  async uploadAnexoUsuario(file: File): Promise<any> {
+    const form = new FormData(); form.append('file', file);
+    const { data } = await api.post('/tenant/documents/anexo-usuario', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30_000 });
+    return data;
+  },
+  async deleteCertificadoEmpresa(): Promise<void> { await api.delete('/tenant/documents/certificado-empresa'); },
+  async deleteAnexoUsuario(): Promise<void> { await api.delete('/tenant/documents/anexo-usuario'); },
+  async downloadCertificadoEmpresa(): Promise<Blob> { const { data } = await api.get('/tenant/documents/certificado-empresa', { responseType: 'blob' }); return data; },
+  async downloadAnexoUsuario(): Promise<Blob> { const { data } = await api.get('/tenant/documents/anexo-usuario', { responseType: 'blob' }); return data; },
+};
+
+export const installationDocsApi = {
+  async list(installationId: string): Promise<InstallationDocument[]> {
+    const { data } = await api.get<InstallationDocument[]>(`/installations/${installationId}/documents/uploaded`);
+    return data;
+  },
+  async upload(installationId: string, file: File, description?: string): Promise<InstallationDocument> {
+    const form = new FormData();
+    form.append('file', file);
+    if (description) form.append('description', description);
+    const { data } = await api.post<InstallationDocument>(
+      `/installations/${installationId}/documents/upload`, form,
+      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30_000 },
+    );
+    return data;
+  },
+  async download(installationId: string, docId: string): Promise<Blob> {
+    const { data } = await api.get(`/installations/${installationId}/documents/uploaded/${docId}/download`, { responseType: 'blob' });
+    return data;
+  },
+  async remove(installationId: string, docId: string): Promise<void> {
+    await api.delete(`/installations/${installationId}/documents/uploaded/${docId}`);
+  },
 };
 
 export const tramitacionApi = {

@@ -16,6 +16,13 @@ interface SmartFieldProps {
   onChange: (name: string, value: any) => void;
   disabled?: boolean;
   missing?: boolean; // required field that is empty
+  uppercase?: boolean; // force uppercase display
+}
+
+/** Title-case display for uppercase option values (e.g. 'CALLE' → 'Calle') */
+function optionLabel(opt: string): string {
+  if (!opt) return opt;
+  return opt.split(' ').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
 }
 
 export function SmartField({
@@ -28,6 +35,7 @@ export function SmartField({
   onChange,
   disabled,
   missing,
+  uppercase,
 }: SmartFieldProps) {
   const isCalculated = group === 'C';
   const isDisabled = disabled || isCalculated;
@@ -88,7 +96,7 @@ export function SmartField({
           </SelectTrigger>
           <SelectContent>
             {options.map((opt) => (
-              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+              <SelectItem key={opt} value={opt}>{optionLabel(opt)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -135,6 +143,7 @@ export function SmartField({
           'h-9 text-sm',
           missing && 'border-amber-400 bg-amber-50/50',
           isDisabled && 'opacity-60',
+          uppercase && 'uppercase',
         )}
       />
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useInstallation } from '@/hooks/use-installation';
 import { documentsApi, panelsApi } from '@/lib/api-client';
@@ -11,6 +11,7 @@ import type { DatosGuiadosHandle, DatosGuiadosState } from '@/components/datos-g
 import { CuadroForm } from '@/components/cuadro-form';
 import type { CuadroFormHandle } from '@/components/cuadro-form';
 import { CuadroV2Tab } from '@/components/cuadro-v2/cuadro-v2-tab';
+import { InstallationDataSection } from '@/components/installation-data-section';
 import { panelNodesApi } from '@/lib/api-client';
 import { DocumentosTab } from '@/components/documentos-tab';
 import type { DocumentosTabHandle } from '@/components/documentos-tab';
@@ -26,11 +27,10 @@ import {
   FileDown,
   CheckCircle2,
   AlertTriangle,
-  Zap,
+  Calculator,
   FolderOpen,
   Construction,
   Save,
-  Plus,
   Trash2,
   Network,
   ArrowUpCircle,
@@ -38,72 +38,6 @@ import {
 } from 'lucide-react';
 
 type Tab = 'datos' | 'cuadro' | 'documentos';
-
-function SupplyResultBanner({ result, panel }: { result: any; panel?: any }) {
-  if (!result) return null;
-  const ok = result.isValid;
-
-  // Diferenciales: preferir los del usuario (panel) sobre los del motor
-  const userDiffs = panel?.differentials;
-  const hasPanelDiffs = userDiffs && userDiffs.length > 0;
-  const diffDisplay = hasPanelDiffs
-    ? userDiffs.map((d: any) => `${d.name} ${d.calibreA}A/${d.sensitivityMa}mA tipo ${d.type}`).join(' · ')
-    : `${result.differentials.length} × ${result.differentials[0]?.sensitivityMa ?? 30} mA (sugeridos)`;
-
-  return (
-    <div className={`rounded-lg border p-4 ${ok ? 'border-emerald-500/30 bg-emerald-50' : 'border-amber-500/30 bg-amber-50'}`}>
-      <div className="flex items-center gap-2 mb-3">
-        <Zap className={`h-4 w-4 ${ok ? 'text-emerald-600' : 'text-amber-600'}`} />
-        <span className={`text-sm font-semibold ${ok ? 'text-emerald-600' : 'text-amber-600'}`}>
-          Suministro calculado {ok ? '— cumple REBT' : '— revisar advertencias'}
-        </span>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 text-sm">
-        <div>
-          <span className="text-surface-500 text-xs">Potencia Máx. Admisible</span>
-          <p className="font-medium">{(result.designPowerW / 1000).toFixed(2)} kW</p>
-        </div>
-        {result.electrificationGrade && (
-          <div>
-            <span className="text-surface-500 text-xs">Electrificación</span>
-            <p className="font-medium">{result.electrificationGrade === 'basic' ? 'Básica' : 'Elevada'}</p>
-          </div>
-        )}
-        <div>
-          <span className="text-surface-500 text-xs">IGA</span>
-          <p className="font-bold text-blue-600">{result.iga.ratingA} A</p>
-        </div>
-        <div>
-          <span className="text-surface-500 text-xs">Sección DI</span>
-          <p className="font-bold text-blue-600">{result.di.sectionMm2} mm²</p>
-        </div>
-        <div>
-          <span className="text-surface-500 text-xs">CdT DI</span>
-          <p className={`font-medium ${result.di.cdtResult.cdtCompliant ? 'text-emerald-600' : 'text-red-600'}`}>
-            {result.di.cdtResult.voltageDropPct.toFixed(3)}% (lím. {result.di.cdtResult.cdtLimitPct}%)
-          </p>
-        </div>
-        <div>
-          <span className="text-surface-500 text-xs">Conductor PE</span>
-          <p className="font-medium">{result.protectionConductorMm2} mm²</p>
-        </div>
-        <div>
-          <span className="text-surface-500 text-xs">Diferenciales</span>
-          <p className="font-medium text-xs">{diffDisplay}</p>
-        </div>
-      </div>
-      {result.warnings && result.warnings.length > 0 && (
-        <div className="mt-3 border-t border-surface-200 pt-2">
-          {result.warnings.map((w: string, i: number) => (
-            <p key={i} className="text-xs text-amber-600 flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3" /> {w}
-            </p>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function ProyectoProximamente() {
   return (
@@ -147,6 +81,8 @@ function CuadroTabContent({
   onCalculate: () => Promise<boolean>;
   onRefetch: () => Promise<void>;
 }) {
+  // Vivienda uses simple panel only — no upgrade to v2
+  const isVivienda = installation?.installationType === 'vivienda';
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [showDowngradeDialog, setShowDowngradeDialog] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
@@ -180,8 +116,11 @@ function CuadroTabContent({
 
   return (
     <div className="space-y-4">
-      {/* Version switch button */}
-      {panelVersion === 'v1' ? (
+      {/* Installation data (CGP, Modulo, DI) */}
+      <InstallationDataSection installationId={installationId} installation={installation} />
+
+      {/* Version switch button — hidden for vivienda (always simple) */}
+      {!isVivienda && (panelVersion === 'v1' ? (
         <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-2">
           <span className="text-xs text-blue-700">
             <strong>Cuadro Simple</strong> — Formato tabla con circuitos y diferenciales
@@ -211,7 +150,7 @@ function CuadroTabContent({
             Volver a Cuadro Simple
           </Button>
         </div>
-      )}
+      ))}
 
       {/* Render v1 or v2 */}
       {panelVersion === 'v1' ? (
@@ -380,6 +319,19 @@ export default function InstallationDetailPage() {
     }
   }, [id, circuits]);
 
+  // ─── REBT compliance summary for sticky bar ───
+  const calcCompliance = useMemo(() => {
+    if (!calculation) return null;
+    const snap = calculation.resultSnapshot as any;
+    const circuitResults = snap?.circuits ?? [];
+    let compliant = 0, nonCompliant = 0;
+    for (const cr of circuitResults) {
+      if (cr?.isCompliant === true) compliant++;
+      else if (cr?.isCompliant === false) nonCompliant++;
+    }
+    return { compliant, nonCompliant, total: circuitResults.length };
+  }, [calculation]);
+
   // ─── Reset panel modal ───
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
@@ -518,7 +470,7 @@ export default function InstallationDetailPage() {
           </>
         )}
         <div className="ml-auto flex items-center gap-2 shrink-0">
-          {compliant && (
+          {compliant && activeTab !== 'cuadro' && (
             <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
               <CheckCircle2 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Cumple REBT</span>
@@ -562,11 +514,11 @@ export default function InstallationDetailPage() {
 
       {/* ═══ Tab Zone (sticky) ═══ */}
       <div
-        className="sticky z-10 -mx-4 lg:-mx-6 px-3 lg:px-5 bg-surface-50/95 backdrop-blur-sm border-b border-surface-200 flex items-center gap-2 transition-[top] duration-300"
-        style={{ top: zoneTop, height: ZONE_H }}
+        className="sticky z-10 -mx-4 lg:-mx-6 px-3 lg:px-5 bg-surface-50/95 backdrop-blur-sm border-b border-surface-200 transition-[top] duration-300"
+        style={{ top: zoneTop, minHeight: ZONE_H }}
       >
         {activeTab === 'datos' && (
-          <>
+          <div className="flex items-center gap-2" style={{ height: ZONE_H }}>
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <div className="w-24 bg-surface-200 rounded-full h-1.5">
                 <div
@@ -591,63 +543,76 @@ export default function InstallationDetailPage() {
               {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
               Guardar
             </Button>
-          </>
+          </div>
         )}
 
         {activeTab === 'cuadro' && panelVersion === 'v1' && (
-          <>
-            <span className="text-xs text-surface-500">
-              {circuits.length} circuito{circuits.length !== 1 ? 's' : ''} · {diffCount} dif.
-            </span>
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setShowResetModal(true)}
-                disabled={circuits.length === 0 && diffCount === 0}
-                className="h-7 text-xs px-3 gap-1 border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Reiniciar Cuadro Eléctrico
-              </Button>
+          <div className="py-1">
+            <div className="flex items-center gap-2" style={{ minHeight: ZONE_H - 8 }}>
+              <span className="text-xs text-surface-500">
+                {circuits.length} circuito{circuits.length !== 1 ? 's' : ''} · {diffCount} dif.
+              </span>
+              <div className="ml-auto flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowResetModal(true)}
+                  disabled={circuits.length === 0 && diffCount === 0}
+                  className="h-7 text-xs px-2 gap-1 text-surface-400 hover:text-red-600 hover:bg-red-50"
+                  title="Reiniciar Cuadro El&#233;ctrico"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => cuadroRef.current?.calculate()}
+                  disabled={isCalculating}
+                  className="h-7 text-xs px-3 gap-1"
+                >
+                  {isCalculating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Calculator className="h-3 w-3" />}
+                  Verificar REBT
+                </Button>
+              </div>
             </div>
-          </>
+            {/* REBT summary banner */}
+            {calculation && supplyResult && calcCompliance && (
+              <div className={`rounded-md px-3 py-1 mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs ${
+                calcCompliance.nonCompliant === 0
+                  ? 'bg-emerald-50 text-emerald-800'
+                  : 'bg-red-50 text-red-800'
+              }`}>
+                {calcCompliance.nonCompliant === 0 ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+                ) : (
+                  <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                )}
+                <span className="font-semibold">
+                  {calcCompliance.nonCompliant === 0
+                    ? 'Cumple REBT'
+                    : `${calcCompliance.nonCompliant} circuito${calcCompliance.nonCompliant !== 1 ? 's' : ''} no cumple${calcCompliance.nonCompliant !== 1 ? 'n' : ''}`}
+                </span>
+                <span className="opacity-75">
+                  P.Máx: {(supplyResult.designPowerW / 1000).toFixed(2)} kW · IGA: {supplyResult.iga.ratingA}A · DI: {supplyResult.di.sectionMm2}mm² (CdT {supplyResult.di.cdtResult.voltageDropPct.toFixed(2)}%) · {calcCompliance.compliant}/{calcCompliance.total} OK
+                </span>
+              </div>
+            )}
+          </div>
         )}
 
         {activeTab === 'cuadro' && panelVersion === 'v2' && (
-          <span className="text-xs text-surface-500">Cuadro eléctrico — Vista de árbol</span>
+          <div className="flex items-center gap-2" style={{ height: ZONE_H }}>
+            <span className="text-xs text-surface-500">Cuadro eléctrico — Vista de árbol</span>
+          </div>
         )}
 
         {activeTab === 'documentos' && (
-          <>
+          <div className="flex items-center gap-2" style={{ height: ZONE_H }}>
             <span className="text-xs text-surface-500">
               {documentCount} documento{documentCount !== 1 ? 's' : ''}
             </span>
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => docsRef.current?.generateMtd()}
-                disabled={!calculation}
-                className="h-7 text-xs px-3 gap-1"
-              >
-                <FileText className="h-3.5 w-3.5" />
-                Generar MTD
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => docsRef.current?.generateCie()}
-                disabled={!compliant}
-                className="h-7 text-xs px-3 gap-1"
-              >
-                <FileDown className="h-3.5 w-3.5" />
-                Generar CIE
-              </Button>
-            </div>
-          </>
+          </div>
         )}
       </div>
 
