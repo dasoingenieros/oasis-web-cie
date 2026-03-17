@@ -37,6 +37,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const { navHidden } = useNavScroll();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [usage, setUsage] = useState<UsageData | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -66,10 +67,9 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const plan = usage?.plan?.toUpperCase() ?? null;
+  const plan = usage?.plan?.toUpperCase() ?? 'FREE';
   const isFreePlan = plan === 'FREE';
   const isPaidPlan = plan === 'PRO' || plan === 'ENTERPRISE';
-  const [portalLoading, setPortalLoading] = useState(false);
 
   return (
     <div className="min-h-screen bg-surface-50 flex">
