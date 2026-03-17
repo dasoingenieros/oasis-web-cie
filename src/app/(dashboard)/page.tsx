@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useInstallations } from '@/hooks/use-installations';
 import { subscriptionsApi } from '@/lib/api-client';
@@ -24,6 +24,7 @@ import {
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     installations,
     isLoading,
@@ -33,11 +34,33 @@ export default function DashboardPage() {
   } = useInstallations();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [usage, setUsage] = useState<UsageData | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 5000);
+  }, []);
 
   // Fetch usage data
   useEffect(() => {
     subscriptionsApi.getUsage().then(setUsage).catch(() => {});
   }, []);
+
+  // Handle Stripe checkout return
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    const puntual = searchParams.get('puntual');
+
+    if (sessionId) {
+      showToast('Pago completado. Tu plan se ha actualizado.');
+      subscriptionsApi.getUsage().then(setUsage).catch(() => {});
+      router.replace('/');
+    } else if (puntual === 'success') {
+      showToast('Crédito añadido. Ya puedes generar tu certificado.');
+      subscriptionsApi.getUsage().then(setUsage).catch(() => {});
+      router.replace('/');
+    }
+  }, [searchParams, showToast, router]);
 
   const stats: DashboardStats = useMemo(() => {
     const now = new Date();
@@ -96,46 +119,73 @@ export default function DashboardPage() {
     { label: 'Completados', value: stats.completed, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
   ];
 
-  // Usage banner
-  const isFreePlan = usage?.isLimited;
-  const usagePercent = usage && usage.maxCerts > 0 ? Math.min(100, Math.round((usage.certsGenerated / usage.maxCerts) * 100)) : 0;
-  const atLimit = usage?.isLimited && usage.remaining === 0;
+  // Usage banner logic
+  const plan = usage?.plan?.toUpperCase() ?? 'FREE';
+  const isFreePlan = plan === 'FREE';
+  const isPro = plan === 'PRO';
+  const isEnterprise = plan === 'ENTERPRISE';
+  const credits = usage?.availableCredits ?? 0;
+  const atLimit = isFreePlan && credits === 0;
 
   return (
     <div className="space-y-6">
       {/* Plan usage banner */}
-      {isFreePlan && usage && (
-        <div className={`rounded-xl border p-4 ${atLimit ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Zap className={`w-4 h-4 ${atLimit ? 'text-red-600' : 'text-blue-600'}`} />
-              <span className={`text-sm font-semibold ${atLimit ? 'text-red-800' : 'text-blue-800'}`}>
-                Plan Free · {usage.certsGenerated}/{usage.maxCerts} certificados generados
-              </span>
+      {usage && (
+        <>
+          {isFreePlan && (
+            <div className={`rounded-xl border p-4 ${atLimit ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Zap className={`w-4 h-4 ${atLimit ? 'text-red-600' : 'text-blue-600'}`} />
+                  <span className={`text-sm font-semibold ${atLimit ? 'text-red-800' : 'text-blue-800'}`}>
+                    {atLimit
+                      ? 'Plan Free — Sin certificados disponibles. Actualiza tu plan.'
+                      : `Plan Free — ${credits} certificado${credits !== 1 ? 's' : ''} disponible${credits !== 1 ? 's' : ''}`}
+                  </span>
+                </div>
+                <a
+                  href="/pricing"
+                  className={`text-sm font-medium inline-flex items-center gap-1 ${
+                    atLimit ? 'text-red-700 hover:text-red-600' : 'text-blue-700 hover:text-blue-600'
+                  } transition-colors`}
+                >
+                  Mejorar plan
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
-            <a
-              href="/pricing"
-              className={`text-sm font-medium inline-flex items-center gap-1 ${
-                atLimit ? 'text-red-700 hover:text-red-600' : 'text-blue-700 hover:text-blue-600'
-              } transition-colors`}
-            >
-              Mejorar plan
-              <ArrowRight className="w-3.5 h-3.5" />
-            </a>
-          </div>
-          {/* Progress bar */}
-          <div className={`w-full h-2 rounded-full ${atLimit ? 'bg-red-200' : 'bg-blue-200'}`}>
-            <div
-              className={`h-2 rounded-full transition-all ${atLimit ? 'bg-red-500' : 'bg-blue-500'}`}
-              style={{ width: `${usagePercent}%` }}
-            />
-          </div>
-          <p className={`text-xs mt-2 ${atLimit ? 'text-red-600' : 'text-blue-600'}`}>
-            {atLimit
-              ? 'Has alcanzado el límite de tu plan. Mejora para seguir generando certificados.'
-              : `Genera hasta ${usage.maxCerts} certificados gratis. ¿Necesitas más? Mejora tu plan.`}
-          </p>
-        </div>
+          )}
+          {isPro && (
+            <div className="rounded-xl border p-4 bg-emerald-50 border-emerald-200">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-semibold text-emerald-800">
+                  Plan Pro — Certificados ilimitados
+                </span>
+              </div>
+            </div>
+          )}
+          {isEnterprise && (
+            <div className="rounded-xl border p-4 bg-purple-50 border-purple-200">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-purple-600" />
+                <span className="text-sm font-semibold text-purple-800">
+                  Plan Enterprise — Certificados ilimitados
+                </span>
+              </div>
+            </div>
+          )}
+          {credits > 0 && !isFreePlan && (
+            <div className="rounded-xl border p-4 bg-amber-50 border-amber-200">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-600" />
+                <span className="text-sm font-semibold text-amber-800">
+                  {credits} crédito{credits !== 1 ? 's' : ''} puntual{credits !== 1 ? 'es' : ''} disponible{credits !== 1 ? 's' : ''}
+                </span>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Header */}
@@ -258,6 +308,13 @@ export default function DashboardPage() {
         onOpenChange={setDialogOpen}
         onSubmit={handleCreate}
       />
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-50 p-4 rounded-lg bg-emerald-50 border border-emerald-200 shadow-lg">
+          <span className="text-sm font-medium text-emerald-800">{toast}</span>
+        </div>
+      )}
     </div>
   );
 }

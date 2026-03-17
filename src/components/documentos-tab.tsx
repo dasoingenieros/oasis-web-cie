@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
-import { documentsApi, installationDocsApi } from '@/lib/api-client';
+import { documentsApi, installationDocsApi, tenantApi } from '@/lib/api-client';
 import type { Document, CalculationResult, ReviewStatus, InstallationDocument } from '@/lib/types';
 import { DOCUMENT_TYPE_LABELS, REVIEW_STATUS_LABELS, formatDatetime, formatFileSize } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -110,6 +110,9 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentDesc, setAttachmentDesc] = useState('');
 
+  // ── Anexo usuario download state ──
+  const [downloadingAnexo, setDownloadingAnexo] = useState(false);
+
   // ── Toast state ──
   const [toast, setToast] = useState<string | null>(null);
 
@@ -146,6 +149,24 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
   }, [installationId]);
   useEffect(() => { fetchUploadedDocs(); }, [fetchUploadedDocs]);
 
+  // ── Download anexo usuario (tenant custom or default) ──
+  const handleDownloadAnexoUsuario = async () => {
+    try {
+      setDownloadingAnexo(true);
+      const blob = await tenantApi.downloadAnexoUsuario();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'anexo-informacion-usuario.pdf';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError('No se pudo descargar el anexo de información al usuario');
+    } finally {
+      setDownloadingAnexo(false);
+    }
+  };
+
   // Cleanup blob URL on unmount
   useEffect(() => {
     return () => { if (previewBlobUrl) window.URL.revokeObjectURL(previewBlobUrl); };
@@ -168,6 +189,11 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
   const openPreview = async (doc: Document) => {
     setLoadingPreview(true);
     setPreviewDoc(doc);
+    // CIE (XLS) can't be rendered in iframe — show data summary only
+    if (doc.mimeType === 'application/vnd.ms-excel') {
+      setLoadingPreview(false);
+      return;
+    }
     try {
       const blob = await documentsApi.preview(installationId, doc.id);
       if (previewBlobUrl) window.URL.revokeObjectURL(previewBlobUrl);
@@ -262,12 +288,13 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
     finally { setGenerating(null); }
   };
 
-  // CIE — saves to DB and shows in list (no auto-download)
+  // CIE — saves to DB, shows in list, and auto-opens preview
   const handleGenerateCie = async () => {
     setGenerating('CERTIFICADO'); setError(null);
     try {
       const doc = await documentsApi.generateCie(installationId);
       setDocuments((prev) => [doc, ...prev]);
+      openPreview(doc);
     } catch (err: any) { if (!isCertLimitError(err)) setError(err?.response?.data?.message || 'Error al generar el CIE'); }
     finally { setGenerating(null); }
   };
@@ -543,6 +570,41 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-6 w-6 animate-spin text-surface-400" />
               </div>
+            ) : previewDoc.mimeType === 'application/vnd.ms-excel' ? (
+              /* CIE summary panel — XLS can't render in iframe */
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-lg border border-surface-200 bg-white p-4">
+                    <p className="text-xs font-medium text-surface-400 mb-1">Nº Certificado (CIE)</p>
+                    <p className="text-sm font-semibold text-surface-800 font-mono">
+                      {installation?.identificadorCie || '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-surface-200 bg-white p-4">
+                    <p className="text-xs font-medium text-surface-400 mb-1">Fecha generación</p>
+                    <p className="text-sm font-semibold text-surface-800">{formatDatetime(previewDoc.generatedAt)}</p>
+                  </div>
+                  <div className="rounded-lg border border-surface-200 bg-white p-4">
+                    <p className="text-xs font-medium text-surface-400 mb-1">Titular</p>
+                    <p className="text-sm font-semibold text-surface-800">
+                      {[installation?.titularNombre, installation?.titularApellido1, installation?.titularApellido2].filter(Boolean).join(' ') || '—'}
+                    </p>
+                    <p className="text-xs text-surface-500 mt-0.5">{installation?.titularNif || ''}</p>
+                  </div>
+                  <div className="rounded-lg border border-surface-200 bg-white p-4">
+                    <p className="text-xs font-medium text-surface-400 mb-1">Dirección instalación</p>
+                    <p className="text-sm font-semibold text-surface-800">
+                      {[installation?.emplazTipoVia, installation?.emplazNombreVia, installation?.emplazNumero].filter(Boolean).join(' ') || installation?.address || '—'}
+                    </p>
+                    <p className="text-xs text-surface-500 mt-0.5">
+                      {[installation?.emplazCp, installation?.emplazLocalidad].filter(Boolean).join(' — ')}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-surface-400 text-center">
+                  Para ver el detalle completo, descarga el archivo Excel (.xls)
+                </p>
+              </div>
             ) : previewBlobUrl && (
               previewDoc.mimeType === 'image/svg+xml' ? (
                 <div className="flex justify-center p-4">
@@ -704,20 +766,12 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
                           {/* Pendiente revisión → Revisar (or Descargar for XLS types like CIE) */}
                           {status === 'pending_review' && doc && (
                             <>
-                              {doc.mimeType === 'application/vnd.ms-excel' ? (
-                                <Button size="sm" onClick={() => handleDownload(doc)}>
-                                  <FileDown className="mr-1 h-3 w-3" />Descargar
-                                </Button>
-                              ) : (
-                                <>
-                                  <Button size="sm" onClick={() => openPreview(doc)}>
-                                    <Eye className="mr-1 h-3 w-3" />Revisar
-                                  </Button>
-                                  <Button size="sm" variant="outline" onClick={() => handleDownload(doc)}>
-                                    <FileDown className="mr-1 h-3 w-3" />Descargar
-                                  </Button>
-                                </>
-                              )}
+                              <Button size="sm" onClick={() => openPreview(doc)}>
+                                <Eye className="mr-1 h-3 w-3" />Revisar
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => handleDownload(doc)}>
+                                <FileDown className="mr-1 h-3 w-3" />Descargar
+                              </Button>
                               <Button size="sm" variant="outline" className="text-red-500 hover:text-red-300 hover:bg-red-50" onClick={() => { setDeleteTarget(doc); setDeleteConfirm(''); }}>
                                 <Trash2 className="h-3 w-3" />
                               </Button>
@@ -788,6 +842,34 @@ export const DocumentosTab = forwardRef<DocumentosTabHandle, DocumentosTabProps>
                     </tr>
                   );
                 })}
+
+                {/* ── Anexo información al usuario ── */}
+                <tr className="bg-white hover:bg-surface-50/50 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-lg p-1.5 bg-brand-50 text-brand-600">
+                        <FileText className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-surface-700">Anexo información al usuario</p>
+                        <p className="text-xs text-surface-400 mt-0.5">Documento informativo REBT</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                      <CheckCircle2 className="h-3 w-3" />Disponible
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5 justify-end">
+                      <Button size="sm" variant="outline" disabled={downloadingAnexo} onClick={handleDownloadAnexoUsuario}>
+                        {downloadingAnexo ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <FileDown className="mr-1 h-3 w-3" />}
+                        Descargar
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>

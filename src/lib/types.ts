@@ -442,6 +442,7 @@ export interface UsageData {
   plan: string;
   isLimited: boolean;
   remaining: number;
+  availableCredits: number;
 }
 
 // ─── Dashboard stats ─────────────────────────────────────────

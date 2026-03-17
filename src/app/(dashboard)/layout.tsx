@@ -17,6 +17,8 @@ import {
   Menu,
   X,
   ArrowUpRight,
+  CreditCard,
+  Loader2,
 } from 'lucide-react';
 import { LegalFooter } from '@/components/legal/legal-footer';
 import { CookieBanner } from '@/components/legal/cookie-banner';
@@ -25,6 +27,7 @@ const nav = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/instalaciones', label: 'Instalaciones', icon: FolderOpen },
   { href: '/configuracion', label: 'Configuración', icon: Settings },
+  { href: '/settings/billing', label: 'Facturación', icon: CreditCard },
 ];
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
@@ -63,7 +66,10 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const isFreePlan = usage?.isLimited;
+  const plan = usage?.plan?.toUpperCase() ?? null;
+  const isFreePlan = plan === 'FREE';
+  const isPaidPlan = plan === 'PRO' || plan === 'ENTERPRISE';
+  const [portalLoading, setPortalLoading] = useState(false);
 
   return (
     <div className="min-h-screen bg-surface-50 flex">
@@ -120,7 +126,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Upgrade button (free plan only) */}
+        {/* Plan action button */}
         {isFreePlan && (
           <div className="px-3 pb-2">
             <Link
@@ -133,6 +139,32 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
               Mejorar plan
               <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
+          </div>
+        )}
+        {isPaidPlan && (
+          <div className="px-3 pb-2">
+            <button
+              onClick={async () => {
+                setPortalLoading(true);
+                try {
+                  const { url } = await subscriptionsApi.createPortal();
+                  window.location.href = url;
+                } catch {
+                  setPortalLoading(false);
+                }
+              }}
+              disabled={portalLoading}
+              className="flex items-center justify-center gap-2 px-3 py-2.5 w-full rounded-lg
+                bg-surface-800 text-surface-300 text-sm font-medium
+                hover:bg-surface-700 hover:text-white transition-all disabled:opacity-50"
+            >
+              {portalLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <CreditCard className="w-4 h-4" />
+              )}
+              Gestionar plan
+            </button>
           </div>
         )}
 

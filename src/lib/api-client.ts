@@ -218,6 +218,18 @@ export const onboardingApi = {
 
 export const subscriptionsApi = {
   async getUsage(): Promise<UsageData> { const { data } = await api.get<UsageData>('/subscriptions/usage'); return data; },
+  async createCheckout(priceId: string): Promise<{ url: string }> {
+    const { data } = await api.post<{ url: string }>('/subscriptions/checkout', { priceId });
+    return data;
+  },
+  async createPortal(): Promise<{ url: string }> {
+    const { data } = await api.post<{ url: string }>('/subscriptions/portal');
+    return data;
+  },
+  async getCredits(): Promise<number> {
+    const { data } = await api.get<number>('/subscriptions/credits');
+    return data;
+  },
 };
 
 export const consentApi = {
